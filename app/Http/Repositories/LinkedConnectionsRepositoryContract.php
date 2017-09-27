@@ -18,7 +18,7 @@ interface LinkedConnectionsRepositoryContract
      * Retrieve an array of LinkedConnection objects for a certain departure time
      *
      * @param Carbon $departureTime The time for which departures should be returned
-     * @return array
+     * @return \App\Http\Models\DeparturesLiveboard[]
      */
     public function getLinkedConnections(Carbon $departureTime): array;
 
@@ -27,7 +27,7 @@ interface LinkedConnectionsRepositoryContract
      *
      * @param Carbon $departureTime The time for which departures should be returned
      * @param int    $window        The window, in seconds, for which departures should be retrieved
-     * @return array
+     * @return \App\Http\Models\DeparturesLiveboard[]
      */
     public function getLinkedConnectionsInWindow(Carbon $departureTime, int $window = 600): array;
 

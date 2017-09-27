@@ -16,7 +16,7 @@ $app->get('/', function () use ($app) {
 });
 
 $app->group(['prefix' => '/liveboard'], function () use ($app) {
-    $app->get('/BE.NMBS.{id:\d{9}}','Api\LiveboardController@getLiveboard');
-    $app->get('/{id:\d{7,9}}','Api\LiveboardController@getLiveboard');
+    $app->get('/{id:\d{9}}','Api\LiveboardController@getLiveboard');
+    //$app->get('/{id:\d{9}}','Api\LiveboardController@getLiveboard');
     $app->get('/{station}','Api\LiveboardController@getLiveboardByName');
 });

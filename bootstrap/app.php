@@ -53,6 +53,12 @@ $app->singleton(
     App\Http\Repositories\LinkedConnectionsRepository::class
 );
 
+$app->singleton(
+    App\Http\Repositories\LiveboardsRepositoryContract::class,
+    App\Http\Repositories\LCLiveboardsRepository::class
+);
+
+
 /*
 |--------------------------------------------------------------------------
 | Register Middleware

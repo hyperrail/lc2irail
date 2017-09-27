@@ -2,10 +2,8 @@
 
 namespace App\Http\Repositories;
 
-use Cache\Adapter\Apc\ApcCachePool;
-use Cache\Adapter\PHPArray\ArrayCachePool;
+use Cache;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use App\Http\Models\LinkedConnection;
 
@@ -18,8 +16,7 @@ use App\Http\Models\LinkedConnection;
 class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 {
 
-    const BASE_URL = "http://graph.spitsgids.be/";
-    private static $cache;
+    const BASE_URL = "http://belgium.linkedconnections.org/sncb/connections";
 
     /**
      * Create a new repository instance.
@@ -31,7 +28,6 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
     }
 
-
     /**
      * Build the URL to retrieve data from LinkedConnections
      *
@@ -40,64 +36,82 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      */
     private static function getLinkedConnectionsURL(Carbon $departureTime): string
     {
-        return self::BASE_URL ;//. "?departureTime=" . date_format($departureTime, 'Y-m-d\TH:i');
+        return self::BASE_URL . "?departureTime=" . date_format($departureTime, 'Y-m-d\TH:i');
     }
 
     /**
      * Retrieve an array of LinkedConnection objects for a certain departure time
      *
      * @param Carbon $departureTime
-     * @return array
+     * @return \App\Http\Models\DeparturesLiveboard[]
      */
     public function getLinkedConnections(Carbon $departureTime): array
     {
-        if (Cache::has('lc:' . $departureTime->getTimestamp())) {
-            return Cache::get('lc:' . $departureTime->getTimestamp());
+        $departureTime = $this->getRoundedDepartureTime($departureTime);
+        $cacheKey = 'lc|' . $departureTime->getTimestamp();
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
         }
 
         $endpoint = self::getLinkedConnectionsURL($departureTime);
 
-        Log::info("Retrieving data from {$endpoint}");
+        Log::info("Retrieving data from {$endpoint}, cache missed!");
 
-        $ld = file_get_contents($endpoint);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $endpoint);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        $ld = curl_exec($ch);
+        curl_close($ch);
 
         $decoded = json_decode($ld, true);
 
         $linkedConnections = [];
         foreach ($decoded['@graph'] as $entry) {
+
+            $arrivalDelay = key_exists('arrivalDelay', $entry) ? $entry['arrivalDelay'] : 0;
+            $departureDelay = key_exists('departureDelay', $entry) ? $entry['departureDelay'] : 0;
+
             $linkedConnections[] = new LinkedConnection($entry['@id'],
                 $entry['departureStop'],
                 strtotime($entry['departureTime']),
-                $entry['departureDelay'],
+                $departureDelay,
                 $entry['arrivalStop'],
                 strtotime($entry['arrivalTime']),
-                $entry['arrivalDelay'],
+                $arrivalDelay,
                 $entry['gtfs:trip'],
                 $entry['gtfs:route']
             );
         }
 
-        Cache::put('lc:' . $departureTime->getTimestamp(), $linkedConnections, 1);
-
+        $expiresAt = Carbon::now()->addSeconds(15);
+        Cache::put($cacheKey, $linkedConnections, $expiresAt);
         return $linkedConnections;
     }
 
 
     public function getLinkedConnectionsInWindow(Carbon $departureTime, int $window = 600): array
     {
-        if (Cache::has('lc:' . $departureTime->getTimestamp() . ":" . $window)) {
-            return Cache::get('lc:' . $departureTime->getTimestamp() . ":" . $window);
+        $departureTime = $this->getRoundedDepartureTime($departureTime);
+        if (Cache::has('lc|' . $departureTime->getTimestamp() . ":" . $window)) {
+            return Cache::get('lc|' . $departureTime->getTimestamp() . ":" . $window);
         }
 
         $departures = [];
-        for ($increment = 0; $increment < $window; $increment += 600) {
-            //array_merge($departures,  $this->getLinkedConnections($request->getDateTime()->addSeconds($increment)));
-            $departures = array_merge($departures,
-                $this->getLinkedConnections((new Carbon("2015-10-01T10:00"))->addSeconds($increment)));
+        $pageWindow = 600;
+        for ($addedSeconds = 0; $addedSeconds < $window; $addedSeconds += $pageWindow) {
+            $windowDepartures = $this->getLinkedConnections($departureTime);
+            $departureTime->addSeconds($pageWindow);
+            $departures = array_merge($departures, $windowDepartures);
         }
 
-        Cache::put('lc:' . $departureTime->getTimestamp() . ":" . $window, $departures, 1);
+        $expiresAt = Carbon::now()->addSeconds(15);
+        Cache::put('lc:' . $departureTime->getTimestamp() . ":" . $window, $departures, $expiresAt);
 
         return $departures;
+    }
+
+    private function getRoundedDepartureTime(Carbon $departureTime) : Carbon {
+        return $departureTime->subMinute($departureTime->minute % 10)->second(0);
     }
 }

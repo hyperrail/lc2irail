@@ -13,13 +13,12 @@ class LinkedConnection
 
     private $id;
 
-    private $departureStopId;
+    private $departureStopURI;
     private $departureTime;
     private $departureDelay;
 
-    private $arrivalStopId;
+    private $arrivalStopURI;
     private $arrivalTime;
-
     private $arrivalDelay;
 
     private $trip;
@@ -38,11 +37,13 @@ class LinkedConnection
     ) {
         $this->id = $id;
 
-        $this->departureStopId = self::getHafasID($departureStop);
+        $this->departureStopURI = $departureStop;
         $this->departureTime = $departureTime;
+        $this->departureDelay = $departureDelay;
 
-        $this->arrivalStopId = self::getHafasID($arrivalStop);
+        $this->arrivalStopURI = $arrivalStop;
         $this->arrivalTime = $arrivalTime;
+        $this->arrivalDelay = $arrivalDelay;
 
         $this->trip = $trip;
 
@@ -58,17 +59,9 @@ class LinkedConnection
         return $this->id;
     }
 
-    /**
-     * @return string
-     */
-    public function getDepartureStopId(): string
+    public function getDepartureStopUri(): string
     {
-        return $this->departureStopId;
-    }
-
-    public function getDepartureStop(): array
-    {
-        return (array)Stations::getStationFromID($this->departureStopId);
+        return $this->departureStopURI;
     }
 
     /**
@@ -87,17 +80,9 @@ class LinkedConnection
         return $this->departureDelay;
     }
 
-    /**
-     * @return string
-     */
-    public function getArrivalStopId(): string
+    public function getArrivalStopUri(): string
     {
-        return $this->arrivalStopId;
-    }
-
-    public function getArrivalStop(): array
-    {
-        return (array)Stations::getStationFromID($this->arrivalStopId);
+        return $this->arrivalStopURI;
     }
 
     /**
@@ -120,7 +105,7 @@ class LinkedConnection
     /**
      * @return int
      */
-    public function getTrip(): int
+    public function getTrip(): string
     {
         return $this->trip;
     }
@@ -132,16 +117,6 @@ class LinkedConnection
     public function getRoute(): string
     {
         return $this->route;
-    }
-
-    private static function getHafasID($id)
-    {
-        if (starts_with($id, 'http')) {
-            $parts = explode('/', $id);
-            $id = array_pop($parts);
-        }
-
-        return sprintf("%09d", $id);
     }
 
 }

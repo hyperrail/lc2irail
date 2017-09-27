@@ -13,14 +13,16 @@ class HyperrailRequest extends Request
     public function getDateTime(): Carbon
     {
         if ($this->has('timestamp')) {
-            return Carbon::createFromTimestamp($this->get('timestamp'));
-        } elseif ($this->has('date') && $this->has('time')) {
-            return Carbon::createFromFormat('dmY Hi', date('dmY') . ' ' . $this->get('time'));
+            $timestamp = Carbon::createFromTimestamp($this->get('timestamp'));
+        } elseif ($this->has('date') && $this->get('time')) {
+            $timestamp = Carbon::createFromFormat('dmY Hi', date('dmY') . ' ' . $this->get('time'));
         } elseif ($this->has('time')) {
-            return Carbon::createFromFormat('dmY Hi', $this->get('date') . ' ' . $this->get('time'));
+            $timestamp = Carbon::createFromFormat('dmY Hi', $this->get('date') . ' ' . $this->get('time'));
         } else {
-            return Carbon::now();
+            $timestamp = Carbon::now();
         }
+
+        return $this->getRoundedDepartureTime($timestamp);
     }
 
     public function getDateTimeType(): int
@@ -42,5 +44,16 @@ class HyperrailRequest extends Request
         return $this->get('lang', 'en');
     }
 
+    private function getRoundedDepartureTime(Carbon $departureTime) : Carbon {
+        return $departureTime->subMinute($departureTime->minute % 10)->second(0);
+    }
 
+
+    public function get($key, $default=null){
+        if (key_exists($key,$_GET)){
+            return $_GET[$key];
+        } else {
+            return $default;
+        }
+    }
 }
