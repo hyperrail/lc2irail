@@ -14,9 +14,9 @@ class HyperrailRequest extends Request
     {
         if ($this->has('timestamp')) {
             $timestamp = Carbon::createFromTimestamp($this->get('timestamp'));
-        } elseif ($this->has('date') && $this->get('time')) {
+        } elseif ($this->get('time')) {
             $timestamp = Carbon::createFromFormat('dmY Hi', date('dmY') . ' ' . $this->get('time'));
-        } elseif ($this->has('time')) {
+        } elseif ($this->has('date') && $this->has('time')) {
             $timestamp = Carbon::createFromFormat('dmY Hi', $this->get('date') . ' ' . $this->get('time'));
         } else {
             $timestamp = Carbon::now();
@@ -48,6 +48,10 @@ class HyperrailRequest extends Request
         return $departureTime->subMinute($departureTime->minute % 10)->second(0);
     }
 
+    public function has($key)
+    {
+        return key_exists($key, $_GET);
+    }
 
     public function get($key, $default=null){
         if (key_exists($key,$_GET)){

@@ -2,7 +2,7 @@
 
 namespace App\Http\Models;
 
-use irail\stations\Stations;
+
 
 /**
  * Class LinkedConnection

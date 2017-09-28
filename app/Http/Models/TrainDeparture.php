@@ -3,8 +3,6 @@
 namespace App\Http\Models;
 
 use Carbon\Carbon;
-use DateTimeInterface;
-use irail\stations\Stations;
 
 /**
  * Class TrainDeparture

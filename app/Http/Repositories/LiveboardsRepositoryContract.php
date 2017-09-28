@@ -2,7 +2,7 @@
 
 namespace App\Http\Repositories;
 
-use App\Http\Models\DeparturesLiveboard;
+use App\Http\Models\Liveboard;
 use App\Http\Models\Station;
 use Carbon\Carbon;
 
@@ -23,8 +23,8 @@ interface LiveboardsRepositoryContract
      * @param Carbon                   $departureTime The time for which departures should be returned
      * @param string                   $language
      * @param int                      $window
-     * @return \App\Http\Models\DeparturesLiveboard
+     * @return \App\Http\Models\Liveboard
      */
-    public function getDepartures(Station $station, Carbon $departureTime, string $language = '', int $window = 3600): DeparturesLiveboard;
+    public function getDepartures(Station $station, Carbon $departureTime, string $language = '', int $window = 3600): Liveboard;
 
 }

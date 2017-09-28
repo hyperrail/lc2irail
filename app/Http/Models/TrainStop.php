@@ -20,10 +20,10 @@ class TrainStop extends TrainStopBase implements \JsonSerializable
         string $uri,
         Vehicle $vehicle,
         int $platform,
-        Carbon $departureTime,
-        int $departureDelay,
         Carbon $arrivalTime,
-        int $arrivalDelay
+        int $arrivalDelay,
+        Carbon $departureTime,
+        int $departureDelay
     ) {
         parent::__construct($uri, $vehicle, $platform);
         $this->departureTime = $departureTime;

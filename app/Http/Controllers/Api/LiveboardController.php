@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 
 
 use App\Http\Models\Station;
+use App\Http\Models\Liveboard;
+use App\Http\Repositories\LCLiveboardsRepository;
 use App\Http\Repositories\LiveboardsRepositoryContract;
 use App\Http\Requests\HyperrailRequest;
 use Carbon\Carbon;
@@ -25,14 +27,31 @@ class LiveboardController extends Controller
         $language = $request->getLanguage();
 
         $station = new Station($id, $language);
+        $cacheKey = "hyperrail|liveboard|$id|$window|$language";
+        if (Cache::has($cacheKey)) {
+            /**
+             * @var $liveboard Liveboard
+             */
+            $liveboard = Cache::get($cacheKey);
+            return response()->json($liveboard, 200) ->withHeaders([
+                'Expires' => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
+                'Cache-Control' => 'Public, max-age=' . $liveboard->getExpiresAt()->diffInSeconds(new Carbon()),
+                'ETag' => $liveboard->getEtag()
+            ]);
+        }
 
         /**
          * @var $repository LiveboardsRepositoryContract
          */
-        $repository = app(LiveboardsRepositoryContract::class);
+        $repository = new LCLiveboardsRepository();
         $liveboard = $repository->getDepartures($station, $request->getDateTime(), $language, $window);
-
-        return response()->json($liveboard, 200);
+        Cache::put($cacheKey, $liveboard, $liveboard->getExpiresAt());
+        Log::info("LIVE, cached until " .  $liveboard->getExpiresAt());
+        return response()->json($liveboard, 200) ->withHeaders([
+            'Expires' => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
+            'Cache-Control' => 'Public, max-age=' . $liveboard->getExpiresAt()->diffInSeconds(new Carbon()),
+            'ETag' => $liveboard->getEtag()
+        ]);
     }
 
     public function getLiveboardByName(HyperrailRequest $request, string $name)
