@@ -36,6 +36,7 @@ class LiveboardController extends Controller
             return response()->json($liveboard, 200) ->withHeaders([
                 'Expires' => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
                 'Cache-Control' => 'Public, max-age=' . $liveboard->getExpiresAt()->diffInSeconds(new Carbon()),
+                'Last-Modified' =>  $liveboard->getCreatedAt()->format('D, d M Y H:i:s e'),
                 'ETag' => $liveboard->getEtag()
             ]);
         }
@@ -49,7 +50,8 @@ class LiveboardController extends Controller
         Log::info("LIVE, cached until " .  $liveboard->getExpiresAt());
         return response()->json($liveboard, 200) ->withHeaders([
             'Expires' => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
-            'Cache-Control' => 'Public, max-age=' . $liveboard->getExpiresAt()->diffInSeconds(new Carbon()),
+            'Cache-Control' => 'max-age=' . $liveboard->getExpiresAt()->diffInSeconds(new Carbon()),
+            'Last-Modified' =>  $liveboard->getCreatedAt()->format('D, d M Y H:i:s e'),
             'ETag' => $liveboard->getEtag()
         ]);
     }

@@ -20,3 +20,9 @@ $app->group(['prefix' => '/liveboard'], function () use ($app) {
     //$app->get('/{id:\d{9}}','Api\LiveboardController@getLiveboard');
     $app->get('/{station}','Api\LiveboardController@getLiveboardByName');
 });
+
+
+$app->group(['prefix' => '/linkedconnections'], function () use ($app) {
+    $app->get('/{key}/{operator}/{value}','Api\LinkedConnectionController@getFilteredConnections');
+    $app->get('/','Api\LinkedConnectionController@getConnections');
+});

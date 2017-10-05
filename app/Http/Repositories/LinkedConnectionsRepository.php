@@ -50,78 +50,16 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      */
     public function getLinkedConnections(Carbon $departureTime): LinkedConnectionPage
     {
-        // TODO: use max-age to implement even better caching
-        $departureTime = $this->getRoundedDepartureTime($departureTime);
-
-        $cacheKey = 'lc|' . $departureTime->getTimestamp();
+        $cacheKey = 'lcpage|' . $departureTime->getTimestamp();
         if (Cache::has($cacheKey)) {
-            /**
-             * @var $previousResponse LinkedConnectionPage
-             */
-            $previousResponse = Cache::get($cacheKey);
-            $previousDate = $previousResponse->getCreatedAt();
-
-            // If data isn't too old, just return for faster responses
-            $now = Carbon::now();
-            if ($now->lessThan($previousResponse->getExpiresAt()) || ($departureTime->lessThan($now) && $departureTime->diffInSeconds($now) > self::PAGE_SIZE_SECONDS)) {
-                return $previousResponse;
-            }
+            return Cache::get($cacheKey);
         }
 
-        // No previous data, or previous data too old: re-validate
-        $endpoint = self::getLinkedConnectionsURL($departureTime);
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $endpoint);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-
-        // If we have a cached old value, included header for conditional get
-        if (isset($previousEtag)) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                'If-None-Match: "' . $previousEtag . '"',
-            ));
-        }
-
-        $headers = [];
-        // this function is called by curl for each header received
-        curl_setopt($ch, CURLOPT_HEADERFUNCTION,
-            function ($curl, $header) use (&$headers) {
-                $len = strlen($header);
-                $header = explode(':', $header, 2);
-                if (count($header) < 2) // ignore invalid headers
-                {
-                    return $len;
-                }
-
-                $name = strtolower(trim($header[0]));
-                if (! array_key_exists($name, $headers)) {
-                    $headers[$name] = [trim($header[1])];
-                } else {
-                    $headers[$name][] = trim($header[1]);
-                }
-
-                return $len;
-            }
-        );
-
-        $data = curl_exec($ch);
-        $info = curl_getinfo($ch);
-        curl_close($ch);
-
-        $etag = $headers['etag'][0];
-        if (starts_with($etag, 'W/')) {
-            $etag = substr($etag, 2);
-        }
-        $etag = trim($etag, '"');
-        $expiresAt = Carbon::createFromTimestamp(strtotime($headers['expires'][0]));
-
-        if (isset($previousResponse) && ($info['http_code'] == 304 || $etag == $previousResponse->getEtag())) {
-            // ETag unchanged, or header status code indicating no change
-            return $previousResponse;
-        }
-
-        $decoded = json_decode($data, true);
+        $raw = $this->getRawLinkedConnections($departureTime);
+        $decoded = $raw['data'];
+        $expiresAt = $raw['expiresAt'];
+        $etag = $raw['etag'];
+        $createdAt = $raw['createdAt'];
 
         $linkedConnections = [];
         foreach ($decoded['@graph'] as $entry) {
@@ -141,14 +79,160 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
             );
         }
 
-        $linkedConnectionsPage = new LinkedConnectionPage($linkedConnections, new Carbon(), $expiresAt, $etag);
+        $linkedConnectionsPage = new LinkedConnectionPage($linkedConnections, $createdAt, $expiresAt, $etag);
 
-        // Cache for 2 hours
-        Cache::put($cacheKey, $linkedConnectionsPage, 120);
+        // Cache for 1 minute //TODO: lower to 30 secs
+        Cache::put($cacheKey, $linkedConnectionsPage, 1);
 
         return $linkedConnectionsPage;
     }
 
+    /**
+     * Retrieve an array of LinkedConnection objects for a certain departure time
+     *
+     * @param Carbon $departureTime
+     * @return \App\Http\Models\LinkedConnectionPage
+     */
+    public function getFilteredLinkedConnections(
+        Carbon $departureTime,
+        $filterKey,
+        $filterOperator,
+        $filterValue
+    ): array {
+
+        $raw = $this->getRawLinkedConnections($departureTime);
+
+        $filterValue = urldecode($filterValue);
+        if ($filterKey == null) {
+            return $raw;
+        }
+
+        foreach ($raw['data']['@graph'] as $key => &$entry) {
+
+            if (! key_exists('arrivalDelay', $entry)) {
+                $entry['arrivalDelay'] = 0;
+            }
+            if (! key_exists('departureDelay', $entry)) {
+                $entry['departureDelay'] = 0;
+            }
+            $keep = false;
+
+            switch ($filterOperator) {
+                case '=':
+                    $keep = ($entry[$filterKey] == $filterValue);
+                    break;
+                case '!=':
+                    $keep = ($entry[$filterKey] != $filterValue);
+                    break;
+                case '<':
+                    $keep = ( $entry[$filterKey] <  $filterValue);
+                    break;
+                case '<=':
+                    $keep = ( $entry[$filterKey] <=  $filterValue);
+                    break;
+                case '>':
+                    $keep = ( $entry[$filterKey] >  $filterValue);
+                    break;
+                case '>=':
+                    $keep = ( $entry[$filterKey] >=  $filterValue);
+                    break;
+            }
+            if (! $keep) {
+                // Remove this from the results
+                unset($raw['data']['@graph'][$key]);
+            }
+
+        }
+        $raw['data']['@graph'] = array_values($raw['data']['@graph']);
+        return $raw;
+    }
+
+    public function getRawLinkedConnections(Carbon $departureTime)
+    {
+        $departureTime = $this->getRoundedDepartureTime($departureTime);
+
+        $pageCacheKey = 'lcraw|' . $departureTime->getTimestamp();
+
+        // Page (array including json, etag and expiresAt), kept for 2 hours so we can reuse the etag
+        if (Cache::has($pageCacheKey)) {
+            /**
+             * @var $previousResponse LinkedConnectionPage
+             */
+            $previousResponse = Cache::get($pageCacheKey);
+
+            // Check if cache is still valid
+            $now = Carbon::now();
+            if ($now->lessThan($previousResponse['expiresAt']) || ($departureTime->lessThan($now) && $departureTime->diffInSeconds($now) > self::PAGE_SIZE_SECONDS)) {
+                $raw = $previousResponse;
+            }
+        }
+
+        // If not valid, retrieve (but try Etag as well)
+        if (! isset($raw)) {
+
+            // No previous data, or previous data too old: re-validate
+            $endpoint = self::getLinkedConnectionsURL($departureTime);
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $endpoint);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+            // If we have a cached old value, included header for conditional get
+            if (isset($previousResponse)) {
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                    'If-None-Match: "' . $previousResponse['etag'] . '"',
+                ));
+            }
+
+            $headers = [];
+            // this function is called by curl for each header received
+            curl_setopt($ch, CURLOPT_HEADERFUNCTION,
+                function ($curl, $header) use (&$headers) {
+                    $len = strlen($header);
+                    $header = explode(':', $header, 2);
+                    if (count($header) < 2) // ignore invalid headers
+                    {
+                        return $len;
+                    }
+
+                    $name = strtolower(trim($header[0]));
+                    if (! array_key_exists($name, $headers)) {
+                        $headers[$name] = [trim($header[1])];
+                    } else {
+                        $headers[$name][] = trim($header[1]);
+                    }
+
+                    return $len;
+                }
+            );
+
+            $data = curl_exec($ch);
+            $info = curl_getinfo($ch);
+            curl_close($ch);
+
+            $etag = $headers['etag'][0];
+            if (starts_with($etag, 'W/')) {
+                $etag = substr($etag, 2);
+            }
+            $etag = trim($etag, '"');
+            $expiresAt = Carbon::createFromTimestamp(strtotime($headers['expires'][0]));
+
+            if (isset($raw) && ($info['http_code'] == 304 || $etag == $raw['etag'])) {
+                // ETag unchanged, or header status code indicating no change
+                // Just keep the raw data
+            } else {
+                $json = json_decode($data, true);
+
+                $raw = ['data' => $json, 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon()];
+                // Cache for 2 hours
+                Cache::put($pageCacheKey, $raw, 120);
+            }
+
+        }
+
+        return $raw;
+    }
 
     public function getLinkedConnectionsInWindow(
         Carbon $departureTime,
