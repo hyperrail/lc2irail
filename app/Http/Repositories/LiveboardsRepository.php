@@ -10,6 +10,7 @@ use App\Http\Models\TrainArrival;
 use App\Http\Models\TrainDeparture;
 use App\Http\Models\TrainStop;
 use App\Http\Models\Vehicle;
+use App\Http\Models\VehicleStub;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -19,7 +20,7 @@ use Illuminate\Support\Facades\Log;
  *
  * @package App\Http\Controllers
  */
-class LCLiveboardsRepository
+class LiveboardsRepository
 {
 
     /**
@@ -72,12 +73,10 @@ class LCLiveboardsRepository
             if ($connection->getDepartureStopUri() == $stationUri) {
                 $departures[] = new TrainDeparture(
                     $connection->getId(),
-                    new Vehicle(
-                        $connection->getTrip(),
+                    new VehicleStub(
                         $connection->getTrip(),
                         "no name known",
-                        new Station($connection->getArrivalStopUri(),
-                            $language)
+                        "direction of this train"
                     ),
                     0,
                     Carbon::createFromTimestamp($connection->getDepartureTime(),"Europe/Brussels"),
@@ -89,12 +88,10 @@ class LCLiveboardsRepository
             if ($connection->getArrivalStopUri() == $stationUri) {
                 $arrivals[] = new TrainArrival(
                     $connection->getId(),
-                    new Vehicle(
-                        $connection->getTrip(),
+                    new VehicleStub(
                         $connection->getTrip(),
                         "no name known",
-                        new Station($connection->getArrivalStopUri(),
-                            $language)
+                        "direction of this train"
                     ),
                     0,
                     Carbon::createFromTimestamp($connection->getArrivalTime(), "Europe/Brussels"),
@@ -134,6 +131,10 @@ class LCLiveboardsRepository
         foreach ($wipeArrivalIds as $id) {
             unset ($arrivals[$id]);
         }
+
+        $departures= array_values($departures);
+        $stops= array_values($stops);
+        $arrivals= array_values($arrivals);
 
         //Log::info("Got " . sizeof($departures) . " relevant departures");
 

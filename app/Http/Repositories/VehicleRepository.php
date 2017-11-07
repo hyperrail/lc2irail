@@ -1,0 +1,64 @@
+<?php
+
+namespace App\Http\Repositories;
+
+use App\Http\Models\IrailCarbon;
+use App\Http\Models\LinkedConnection;
+use App\Http\Models\Liveboard;
+use App\Http\Models\Station;
+use App\Http\Models\TrainArrival;
+use App\Http\Models\TrainDeparture;
+use App\Http\Models\TrainStop;
+use App\Http\Models\Vehicle;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use Vehicle;
+
+/**
+ * Class LinkedConnectionsRepositories
+ * A read-only repository for realtime train data in linkedconnections format
+ *
+ * @package App\Http\Controllers
+ */
+class VehicleRepository implements  VehicleRepositoryContract
+{
+
+
+    public function getVehicle(String $trip, Carbon $date, string $language = ''): Vehicle
+    {
+
+        $vehicleName = "IC000"; // TODO: fix
+        $repository = app(LinkedConnectionsRepositoryContract::class);
+
+        /**
+         * @var $linkedConnectionsData \App\Http\Models\LinkedConnectionPage
+         */
+        $linkedConnectionsData = $repository->getLinkedConnectionsInWindow($date, 86400);
+        $linkedConnections = $linkedConnectionsData->getLinkedConnections();
+
+        //Log::info("Got " . sizeof($linkedConnections) . " departures");
+
+        /**
+         * @var $stops TrainStop[]
+         */
+        $stops = [];
+        $direction = null;
+
+        foreach ($linkedConnections as $connection) {
+            if ($connection->getTrip() == $trip) {
+                $stops[] = new TrainStop(
+                    $connection->getId(),
+                    null,
+                    0,
+                    Carbon::createFromTimestamp($connection->getArrivalTime(),"Europe/Brussels"),
+                    $connection->getArrivalDelay(),
+                    Carbon::createFromTimestamp($connection->getDepartureTime(),"Europe/Brussels"),
+                    $connection->getDepartureDelay()
+                );
+            }
+        }
+
+        return new Vehicle($trip,$vehicleName, $direction, $stops, $linkedConnectionsData->getCreatedAt(),
+            $linkedConnectionsData->getExpiresAt(), $linkedConnectionsData->getEtag());
+    }
+}

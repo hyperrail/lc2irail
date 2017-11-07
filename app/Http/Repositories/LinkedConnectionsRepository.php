@@ -18,7 +18,7 @@ use App\Http\Models\LinkedConnection;
 class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 {
 
-    const BASE_URL = "http://belgium.linkedconnections.org/sncb/connections";
+    var $BASE_URL;
     const PAGE_SIZE_SECONDS = 600;
 
     /**
@@ -28,7 +28,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      */
     public function __construct()
     {
-
+        $this->BASE_URL = env("LINKED_CONNECTIONS","https://graph.irail.be/sncb/connection");
     }
 
     /**
@@ -37,9 +37,9 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      * @param Carbon $departureTime
      * @return string
      */
-    private static function getLinkedConnectionsURL(Carbon $departureTime): string
+    private function getLinkedConnectionsURL(Carbon $departureTime): string
     {
-        return self::BASE_URL . "?departureTime=" . date_format($departureTime, 'Y-m-d\TH:i');
+        return $this->BASE_URL . "?departureTime=" . date_format($departureTime, 'Y-m-d\TH:i');
     }
 
     /**
@@ -171,7 +171,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         if (! isset($raw)) {
 
             // No previous data, or previous data too old: re-validate
-            $endpoint = self::getLinkedConnectionsURL($departureTime);
+            $endpoint = $this->getLinkedConnectionsURL($departureTime);
 
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $endpoint);

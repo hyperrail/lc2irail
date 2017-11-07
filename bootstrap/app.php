@@ -55,7 +55,7 @@ $app->singleton(
 
 $app->singleton(
     App\Http\Repositories\LiveboardsRepositoryContract::class,
-    App\Http\Repositories\LCLiveboardsRepository::class
+    App\Http\Repositories\LiveboardsRepository::class
 );
 
 

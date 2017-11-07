@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 
 use App\Http\Models\Station;
 use App\Http\Models\Liveboard;
-use App\Http\Repositories\LCLiveboardsRepository;
+use App\Http\Repositories\LiveboardsRepository;
 use App\Http\Repositories\LiveboardsRepositoryContract;
 use App\Http\Requests\HyperrailRequest;
 use Carbon\Carbon;
@@ -44,7 +44,7 @@ class LiveboardController extends Controller
         /**
          * @var $repository LiveboardsRepositoryContract
          */
-        $repository = new LCLiveboardsRepository();
+        $repository = new LiveboardsRepository();
         $liveboard = $repository->getDepartures($station, $request->getDateTime(), $language, $window);
         Cache::put($cacheKey, $liveboard, $liveboard->getExpiresAt());
         Log::info("LIVE, cached until " .  $liveboard->getExpiresAt());

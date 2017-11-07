@@ -15,7 +15,7 @@ class TrainDeparture extends TrainStopBase implements \JsonSerializable
 
     public function __construct(
         string $uri,
-        Vehicle $vehicle,
+        VehicleStub $vehicle,
         int $platform,
         Carbon $departureTime,
         int $departureDelay
@@ -46,6 +46,9 @@ class TrainDeparture extends TrainStopBase implements \JsonSerializable
     {
         $vars = get_object_vars($this);
         unset ($vars['departureTime']);
+        if ($this->getVehicle() == null) {
+            unset($vars['vehicle']);
+        }
         return $vars;
     }
 }

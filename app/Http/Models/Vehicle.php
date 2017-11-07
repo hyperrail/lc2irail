@@ -1,66 +1,52 @@
 <?php
 
-namespace App\Http\Models;
-
-use irail\stations\Stations;
+use App\Http\Models\ApiResponse;
+use App\Http\Models\VehicleStub;
+use Carbon\Carbon;
 
 /**
  * Class Vehicle
  */
-class Vehicle implements \JsonSerializable
+class Vehicle extends VehicleStub implements \JsonSerializable
 {
+    use ApiResponse;
 
-    private $uri;
-    private $id;
-    private $name;
-    private $direction;
+    private $stops;
+
 
     public function __construct(
         string $uri,
         string $id,
-        string $name,
-        Station $direction
+        string $direction,
+        array $stops,
+        Carbon $createdAt,
+        Carbon $expiresAt,
+        string $etag
     ) {
-        $this->uri = $uri;
-        $this->id = $id;
-        $this->name = $name;
-        $this->direction = $direction;
-    }
-    /**
-     * @return string
-     */
-    public function getUri(): string
-    {
-        return $this->uri;
+        parent::__construct($uri, $id, $direction);
+        $this->createApiResponse($createdAt, $expiresAt, $etag);
+
+        $this->stops = $stops;
+
     }
 
     /**
-     * @return string
+     * @return \App\Http\Models\TrainStop[]
      */
-    public function getId(): string
+    public function getStops(): array
     {
-        return $this->id;
+        return $this->stops;
     }
 
-    /**
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * @return Station
-     */
-    public function getDirection(): Station
-    {
-        return $this->direction;
-    }
 
     public function jsonSerialize()
     {
         $vars = get_object_vars($this);
+        unset($vars['createdAt']);
+        unset($vars['expiresAt']);
+        unset($vars['etag']);
+
         return $vars;
     }
+
 }

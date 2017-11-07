@@ -10,22 +10,12 @@ use Carbon\Carbon;
  */
 class Liveboard implements \JsonSerializable
 {
-
+    use ApiResponse;
     private $station;
     private $departures;
 
-    /**
-     * @var Carbon
-     */
-    private $createdAt;
-
-    /**
-     * @var Carbon
-     */
-    private $expiresAt;
     private $arrivals;
     private $stops;
-    private $etag;
 
 
     public function __construct(
@@ -37,13 +27,12 @@ class Liveboard implements \JsonSerializable
         Carbon $expiresAt,
         string $etag
     ) {
+        $this->createApiResponse($createdAt, $expiresAt, $etag);
         $this->station = $station;
         $this->departures = $departures;
         $this->stops = $stops;
         $this->arrivals = $arrivals;
-        $this->createdAt = $createdAt;
-        $this->expiresAt = $expiresAt;
-        $this->etag = $etag;
+
     }
 
     /**
@@ -78,22 +67,6 @@ class Liveboard implements \JsonSerializable
         return $this->arrivals;
     }
 
-    /**
-     * @return Carbon
-     */
-    public function getCreatedAt(): Carbon
-    {
-        return $this->createdAt;
-    }
-
-    /**
-     * @return Carbon
-     */
-    public function getExpiresAt(): Carbon
-    {
-        return $this->expiresAt;
-    }
-
     public function jsonSerialize()
     {
         $vars = get_object_vars($this);
@@ -104,11 +77,4 @@ class Liveboard implements \JsonSerializable
         return $vars;
     }
 
-    /**
-     * @return string
-     */
-    public function getEtag(): string
-    {
-        return $this->etag;
-    }
 }
