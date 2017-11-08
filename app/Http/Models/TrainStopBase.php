@@ -18,8 +18,8 @@ abstract class TrainStopBase
 
     public function __construct(
         string $uri,
-        VehicleStub $vehicle,
-        string $platform
+        string $platform,
+        VehicleStub $vehicle = null
     ) {
         $this->uri = $uri;
         $this->vehicle = $vehicle;
@@ -37,7 +37,7 @@ abstract class TrainStopBase
     /**
      * @return Vehicle
      */
-    public function getVehicle(): VehicleStub
+    public function getVehicle(): ?VehicleStub
     {
         return $this->vehicle;
     }

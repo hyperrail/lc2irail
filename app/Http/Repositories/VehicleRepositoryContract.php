@@ -6,7 +6,6 @@ use App\Http\Models\Liveboard;
 use App\Http\Models\Station;
 use App\Http\Models\Vehicle;
 use Carbon\Carbon;
-use Vehicle;
 
 
 /**
@@ -21,11 +20,11 @@ interface VehicleRepositoryContract
     /**
      * Retrieve an array of LinkedConnection objects for a certain departure time
      *
-     * @param String         $name
-     * @param \Carbon\Carbon $date
-     * @param string         $language
+     * @param string $name
+     * @param string $date The date in yyyyMMdd format
+     * @param string $language The language in ISO2 format
      * @return \App\Http\Models\Vehicle
      */
-    public function getVehicle(String $name, Carbon $date, string $language = ''): Vehicle;
+    public function getVehicle(String $name, string $date, string $language = ''): Vehicle;
 
 }

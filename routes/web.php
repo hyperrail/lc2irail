@@ -22,6 +22,23 @@ $app->group(['prefix' => '/liveboard'], function () use ($app) {
 });
 
 
+$app->group(['prefix' => '/vehicle'], function () use ($app) {
+    $app->get('/{id}/{date:\d{8}}','Api\VehicleController@getVehicle');
+});
+
+$app->group(['prefix' => '/connections'], function () use ($app) {
+    $app->get('/BE.NMBS.{from:\d{9}/BE.NMBS.{to:\d{9}/{date:\d{8}}','Api\RouteController@getRoute');
+    $app->get('/{id:\d{7}/{date:\d{8}/{vehicle}','Api\RouteController@getDepartureConnection');
+});
+
+$app->group(['prefix' => '/disturbances'], function () use ($app) {
+    $app->get('/','Api\DisturbanceController@getDisturbances');
+});
+
+$app->group(['prefix' => '/stats'], function () use ($app) {
+    $app->get('/{vehicles}','Api\StatsController@getStats');
+});
+
 $app->group(['prefix' => '/linkedconnections'], function () use ($app) {
     $app->get('/{key}/{operator}/{value}','Api\LinkedConnectionController@getFilteredConnections');
     $app->get('/','Api\LinkedConnectionController@getConnections');

@@ -12,6 +12,8 @@ class HyperrailRequest extends Request
 
     public function getDateTime(): Carbon
     {
+        // Timestamp (or no time definition at all) should be the used.
+        // Any other time/date parameters are for some backwards compatibility and will be removed in the future.
         if ($this->has('timestamp')) {
             $timestamp = Carbon::createFromTimestamp($this->get('timestamp'));
         } elseif ($this->get('time')) {

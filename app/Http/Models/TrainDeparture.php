@@ -20,7 +20,7 @@ class TrainDeparture extends TrainStopBase implements \JsonSerializable
         Carbon $departureTime,
         int $departureDelay
     ) {
-        parent::__construct($uri,$vehicle,$platform);
+        parent::__construct($uri, $platform, $vehicle);
         $this->departureTime = $departureTime;
         $this->departureTimestamp = $this->departureTime->toAtomString();
         $this->departureDelay = $departureDelay;

@@ -112,10 +112,13 @@ class LiveboardsRepository
             $i = $departureIdAfterThisArrival[$id];
             while ($i < $numberOfDepartures && $matched == false) {
                 if ($departures[$i]->getVehicle()->getId() == $arrivingTrip) {
-                    $stops[] = new TrainStop($departures[$i]->getUri(), $departures[$i]->getVehicle(),
+                    $stops[] = new TrainStop($departures[$i]->getUri(),
                         $departures[$i]->getPlatform(),
-                        $arrival->getArrivalTime(), $arrival->getArrivalDelay(),
-                        $departures[$i]->getDepartureTime(), $departures[$i]->getDepartureDelay());
+                        $arrival->getArrivalTime(),
+                        $arrival->getArrivalDelay(),
+                        $departures[$i]->getDepartureTime(),
+                        $departures[$i]->getDepartureDelay(),
+                        $departures[$i]->getVehicle());
 
                     $wipeArrivalIds[] = $id;
                     $wipeDepartureIds[] = $id;

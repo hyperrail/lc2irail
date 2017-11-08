@@ -39,7 +39,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      */
     private function getLinkedConnectionsURL(Carbon $departureTime): string
     {
-        return $this->BASE_URL . "?departureTime=" . date_format($departureTime, 'Y-m-d\TH:i');
+        return $this->BASE_URL . "?departureTime=" . date_format($departureTime, 'Y-m-d\TH:i:s') . '.000Z';
     }
 
     /**
@@ -62,23 +62,25 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         $createdAt = $raw['createdAt'];
 
         $linkedConnections = [];
-        foreach ($decoded['@graph'] as $entry) {
+        if ($decoded != null && key_exists('@graph', $decoded)) {
+            foreach ($decoded['@graph'] as $entry) {
+                $arrivalDelay = key_exists('arrivalDelay', $entry) ? $entry['arrivalDelay'] : 0;
+                $departureDelay = key_exists('departureDelay', $entry) ? $entry['departureDelay'] : 0;
 
-            $arrivalDelay = key_exists('arrivalDelay', $entry) ? $entry['arrivalDelay'] : 0;
-            $departureDelay = key_exists('departureDelay', $entry) ? $entry['departureDelay'] : 0;
-
-            $linkedConnections[] = new LinkedConnection($entry['@id'],
-                $entry['departureStop'],
-                strtotime($entry['departureTime']),
-                $departureDelay,
-                $entry['arrivalStop'],
-                strtotime($entry['arrivalTime']),
-                $arrivalDelay,
-                $entry['gtfs:trip'],
-                $entry['gtfs:route']
-            );
+                $linkedConnections[] = new LinkedConnection($entry['@id'],
+                    $entry['departureStop'],
+                    strtotime($entry['departureTime']),
+                    $departureDelay,
+                    $entry['arrivalStop'],
+                    strtotime($entry['arrivalTime']),
+                    $arrivalDelay,
+                    $entry['gtfs:trip'],
+                    $entry['gtfs:route']
+                );
+            }
+        } else {
+            Log::Warning("Could not retrieve data for " . $departureTime);
         }
-
         $linkedConnectionsPage = new LinkedConnectionPage($linkedConnections, $createdAt, $expiresAt, $etag);
 
         // Cache for 1 minute //TODO: lower to 30 secs
@@ -267,7 +269,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $expiresAt = $windowPage->getExpiresAt();
             }
 
-            $departureTime->addSeconds(self::PAGE_SIZE_SECONDS);
+            $departureTime = $departureTime->addSeconds(self::PAGE_SIZE_SECONDS);
         }
 
         // Calculate a new etag based on the concatenation of all other etags
@@ -275,6 +277,57 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         if (isset($previousResponse) && $etag == $previousResponse->getEtag()) {
             Log::info("Unchanged combined page!");
 
+            // return the response with the old creation date, we can use this later on for HTTP headers
+            return $previousResponse;
+        }
+
+        $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag);
+
+        // Cache for 2 hours
+        Cache::put($cacheKey, $combinedPage, 120);
+
+        return $combinedPage;
+    }
+
+    public function getConnectionsByLimit(
+        Carbon $departureTime,
+        int $results
+    ): LinkedConnectionPage {
+        $departureTime = $this->getRoundedDepartureTime($departureTime);
+
+        $cacheKey = 'lc|' . $departureTime->getTimestamp() . "|" . $results;
+        if (Cache::has($cacheKey)) {
+            $previousResponse = Cache::get($cacheKey);
+            $previousDate = $previousResponse->getCreatedAt();
+            $now = new Carbon();
+
+            // If data isn't too old, just return for faster responses
+            if (Carbon::now()
+                    ->lessThan($previousResponse->getExpiresAt()) || ($departureTime->lessThan($now) && $departureTime->diffInSeconds($now) > self::PAGE_SIZE_SECONDS)) {
+                return $previousResponse;
+            }
+        }
+
+        $departures = [];
+        $etag = "";
+        $expiresAt = null;
+
+        for ($addedSeconds = 0; $results < count($departures); $addedSeconds += self::PAGE_SIZE_SECONDS) {
+            $windowPage = $this->getLinkedConnections($departureTime);
+            $departures = array_merge($departures, $windowPage->getLinkedConnections());
+
+            $etag .= $windowPage->getEtag();
+
+            if ($expiresAt == null || $windowPage->getExpiresAt()->lessThan($expiresAt)) {
+                $expiresAt = $windowPage->getExpiresAt();
+            }
+
+            $departureTime->addSeconds(self::PAGE_SIZE_SECONDS);
+        }
+
+        // Calculate a new etag based on the concatenation of all other etags
+        $etag = md5($etag);
+        if (isset($previousResponse) && $etag == $previousResponse->getEtag()) {
             // return the response with the old creation date, we can use this later on for HTTP headers
             return $previousResponse;
         }

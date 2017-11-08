@@ -22,7 +22,7 @@ class TrainArrival extends TrainStopBase implements \JsonSerializable
         Carbon $arrivalTime,
         int $arrivalDelay
     ) {
-        parent::__construct($uri,$vehicle,$platform);
+        parent::__construct($uri,$platform,$vehicle);
         $this->arrivalTime = $arrivalTime;
         $this->arrivalTimestamp = $this->arrivalTime->toAtomString();
         $this->arrivalDelay = $arrivalDelay;

@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Models\Vehicle;
 use App\Http\Repositories\VehicleRepository;
+use App\Http\Requests\HyperrailRequest;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class VehicleController extends Controller
 {
@@ -12,6 +16,7 @@ class VehicleController extends Controller
     public function getVehicle(HyperrailRequest $request, string $id, string $date)
     {
         $language = $request->getLanguage();
+$id = stripslashes(urldecode($id));
 
         $cacheKey = "hyperrail|vehicle|$id|$language";
         if (Cache::has($cacheKey)) {
@@ -28,10 +33,10 @@ class VehicleController extends Controller
         }
 
         /**
-         * @var $repository LiveboardsRepositoryContract
+         * @var $repository \App\Http\Repositories\VehicleRepositoryContract
          */
         $repository = new VehicleRepository();
-        $vehicle = $repository->getVehicle($id, Carbon::createFromFormat($date,"yyyyMMdd"), $language);
+        $vehicle = $repository->getVehicle($id, $date, $language);
         Cache::put($cacheKey, $vehicle, $vehicle->getExpiresAt());
         Log::info("LIVE, cached until " .  $vehicle->getExpiresAt());
         return response()->json($vehicle, 200) ->withHeaders([

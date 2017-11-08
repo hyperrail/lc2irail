@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Models\ApiResponse;
-use App\Http\Models\VehicleStub;
+namespace App\Http\Models;
+
 use Carbon\Carbon;
 
 /**
