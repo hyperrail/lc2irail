@@ -16,14 +16,18 @@ abstract class TrainStopBase
 
     protected $platform;
 
+    protected $station;
+
     public function __construct(
         string $uri,
         string $platform,
-        VehicleStub $vehicle = null
+        VehicleStub $vehicle = null,
+        Station $station = null
     ) {
         $this->uri = $uri;
         $this->vehicle = $vehicle;
         $this->platform = $platform;
+        $this->station = $station;
     }
 
     /**
@@ -48,5 +52,13 @@ abstract class TrainStopBase
     public function getPlatform(): string
     {
         return $this->platform;
+    }
+
+    /**
+     * @return Station
+     */
+    public function getStation(): ?Station
+    {
+        return $this->station;
     }
 }

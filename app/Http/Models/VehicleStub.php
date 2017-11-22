@@ -10,9 +10,9 @@ use irail\stations\Stations;
 class VehicleStub implements \JsonSerializable
 {
 
-    private $uri;
-    private $id;
-    private $direction;
+    protected $uri;
+    protected $id;
+    protected $direction;
 
     public function __construct(
         string $uri,

@@ -2,9 +2,13 @@
 
 namespace App\Http\Repositories;
 
+use App\Http\Models\Station;
+use App\Http\Models\TrainArrival;
+use App\Http\Models\TrainDeparture;
 use App\Http\Models\TrainStop;
 use App\Http\Models\Vehicle;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 
 /**
@@ -16,43 +20,113 @@ use Carbon\Carbon;
 class VehicleRepository implements  VehicleRepositoryContract
 {
 
-    public function getVehicle(string $trip, string $date, string $language = ''): Vehicle
+    public function getVehicle(string $id, string $date, string $language = ''): Vehicle
     {
 
-        $datestamp = Carbon::createFromFormat("Ymd his",$date . " 020000");
+        $trip = "http://irail.be/vehicle/" . $id . "/" . $date;
 
-        $vehicleName = "IC000"; // TODO: fix
+        $datestamp = Carbon::createFromFormat("Ymd his", $date . " 030000");
+
         $repository = app(LinkedConnectionsRepositoryContract::class);
-
-        /**
-         * @var $linkedConnectionsData \App\Http\Models\LinkedConnectionPage
-         */
-        $linkedConnectionsData = $repository->getLinkedConnectionsInWindow($datestamp, 86400);
-        $linkedConnections = $linkedConnectionsData->getLinkedConnections();
-
-        //Log::info("Got " . sizeof($linkedConnections) . " departures");
 
         /**
          * @var $stops TrainStop[]
          */
         $stops = [];
         $direction = null;
-        // TODO: use a while loop here to check if more pages should be retrieved
-        foreach ($linkedConnections as $connection) {
-            if ($connection->getTrip() == $trip) {
-                $stops[] = new TrainStop(
-                    $connection->getId(),
-                    0,
-                    Carbon::createFromTimestamp($connection->getArrivalTime(),"Europe/Brussels"),
-                    $connection->getArrivalDelay(),
-                    Carbon::createFromTimestamp($connection->getDepartureTime(),"Europe/Brussels"),
-                    $connection->getDepartureDelay()
-                );
-                $direction = $connection->getArrivalStopUri();
+        $vehicleName = null;
+
+        $prevArrivalTime = null;
+        $prevArrivalDelay = null;
+        $prevArrivalStop = null;
+
+        $oldestCreatedAt = null;
+        $oldestExpiresAt = null;
+        $etag = null;
+
+        $hoursWithoutStop = 0;
+
+        while ((count($stops) == 0 || $hoursWithoutStop < 2) && $hoursWithoutStop < 24) {
+
+            Log::info("Getting connections for date " . $datestamp->toDateTimeString());
+            /**
+             * @var $linkedConnectionsData \App\Http\Models\LinkedConnectionPage
+             */
+            $linkedConnectionsData = $repository->getLinkedConnectionsInWindow($datestamp, 3600);
+            // Increase for next query. 3600 pages are widespread used through the application, meaning more chance for it to be cached
+            $datestamp->addSeconds(3600);
+
+            if ($oldestCreatedAt == null || $linkedConnectionsData->getCreatedAt()->lessThan($oldestCreatedAt)) {
+                $oldestCreatedAt = $linkedConnectionsData->getCreatedAt();
             }
+
+
+            if ($oldestExpiresAt == null || $linkedConnectionsData->getExpiresAt()->lessThan($oldestExpiresAt)) {
+                $oldestExpiresAt = $linkedConnectionsData->getCreatedAt();
+            }
+
+
+            if ($etag == null) {
+                $etag = $linkedConnectionsData->getEtag();
+            } else {
+                $etag .= $linkedConnectionsData->getEtag();
+            }
+
+            foreach ($linkedConnectionsData->getLinkedConnections() as $connection) {
+                if ($connection->getTrip() != $trip) {
+                    continue;
+                }
+
+                if (count($stops) == 0) {
+                    $stops[] = new TrainDeparture(
+                        $connection->getId(),
+                        Carbon::createFromTimestamp($connection->getDepartureTime(), "Europe/Brussels"),
+                        $connection->getDepartureDelay(), 0, null,
+                        new Station($connection->getDepartureStopUri(), $language)
+                    );
+
+                    $direction = $connection->getDirection();
+                    $vehicleName = $connection->getRoute();
+
+                } else {
+                    $stops[] = new TrainStop(
+                        $connection->getId(),
+                        0,
+                        Carbon::createFromTimestamp($prevArrivalTime, "Europe/Brussels"),
+                        $prevArrivalDelay,
+                        Carbon::createFromTimestamp($connection->getDepartureTime(), "Europe/Brussels"),
+                        $connection->getDepartureDelay(),
+                        null,
+                        new Station($connection->getDepartureStopUri(), $language)
+                    );
+                }
+                Log::info("Found relevant connection " . $connection->getId());
+
+                $prevArrivalDelay = $connection->getArrivalDelay();
+                $prevArrivalTime = $connection->getArrivalTime();
+                $prevArrivalStop = $connection->getArrivalStopUri();
+
+                $hoursWithoutStop = 0;
+            }
+
+            $hoursWithoutStop++;
+
         }
 
-        return new Vehicle($trip,$vehicleName, 'dir ' . $direction, $stops, $linkedConnectionsData->getCreatedAt(),
-            $linkedConnectionsData->getExpiresAt(), $linkedConnectionsData->getEtag());
+        if ($hoursWithoutStop > 23) {
+            abort(404);
+        }
+
+        $stops[] = new TrainArrival(
+            "arrival",
+            Carbon::createFromTimestamp($prevArrivalTime, "Europe/Brussels"),
+            $prevArrivalDelay,
+            0,
+            null,
+            new Station($prevArrivalStop, $language)
+        );
+
+        return new Vehicle($trip, $vehicleName, $direction, $stops, $oldestCreatedAt,
+            $oldestExpiresAt, md5($etag));
     }
 }

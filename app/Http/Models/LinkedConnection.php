@@ -21,6 +21,8 @@ class LinkedConnection
     private $arrivalTime;
     private $arrivalDelay;
 
+    private $direction;
+
     private $trip;
     private $route;
 
@@ -32,6 +34,7 @@ class LinkedConnection
         string $arrivalStop,
         int $arrivalTime,
         int $arrivalDelay,
+        string $direction,
         string $trip,
         string $route
     ) {
@@ -45,10 +48,9 @@ class LinkedConnection
         $this->arrivalTime = $arrivalTime;
         $this->arrivalDelay = $arrivalDelay;
 
+        $this->direction = $direction;
         $this->trip = $trip;
-
-        $routeParts = explode('/', $route);
-        $this->route = array_pop($routeParts);
+        $this->route = basename($route);
     }
 
     /**
@@ -117,6 +119,14 @@ class LinkedConnection
     public function getRoute(): string
     {
         return $this->route;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getDirection()
+    {
+        return $this->direction;
     }
 
 }

@@ -27,7 +27,6 @@ $app->group(['prefix' => '/vehicle'], function () use ($app) {
 });
 
 $app->group(['prefix' => '/connections'], function () use ($app) {
-    $app->get('/BE.NMBS.{from:\d{9}/BE.NMBS.{to:\d{9}/{date:\d{8}}','Api\RouteController@getRoute');
     $app->get('/{id:\d{7}/{date:\d{8}/{vehicle}','Api\RouteController@getDepartureConnection');
 });
 

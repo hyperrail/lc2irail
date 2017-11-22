@@ -73,29 +73,24 @@ class LiveboardsRepository
             if ($connection->getDepartureStopUri() == $stationUri) {
                 $departures[] = new TrainDeparture(
                     $connection->getId(),
-                    new VehicleStub(
+                    Carbon::createFromTimestamp($connection->getDepartureTime(), "Europe/Brussels"),
+                    $connection->getDepartureDelay(), 0, new VehicleStub(
                         $connection->getTrip(),
-                        "no name known",
-                        "direction of this train"
-                    ),
-                    0,
-                    Carbon::createFromTimestamp($connection->getDepartureTime(),"Europe/Brussels"),
-                    $connection->getDepartureDelay()
+                        $connection->getRoute(),
+                        $connection->getDirection()
+                    )
                 );
                 $numberOfDepartures++;
                 continue;
             }
             if ($connection->getArrivalStopUri() == $stationUri) {
                 $arrivals[] = new TrainArrival(
-                    $connection->getId(),
-                    new VehicleStub(
+                    $connection->getId(), Carbon::createFromTimestamp($connection->getArrivalTime(), "Europe/Brussels"),
+                    $connection->getArrivalDelay(), 0, new VehicleStub(
                         $connection->getTrip(),
-                        "no name known",
-                        "direction of this train"
-                    ),
-                    0,
-                    Carbon::createFromTimestamp($connection->getArrivalTime(), "Europe/Brussels"),
-                    $connection->getArrivalDelay()
+                        $connection->getRoute(),
+                        $connection->getDirection()
+                    )
                 );
                 $departureIdAfterThisArrival[] = $numberOfDepartures;
                 $numberOfArrivals++;
@@ -105,7 +100,9 @@ class LiveboardsRepository
 
         $wipeArrivalIds = [];
         $wipeDepartureIds = [];
+
         // Departures and Arrivals are already sorted chronologically
+        // We're distinguishing departures, arrivals and normal stops
         foreach ($arrivals as $id => $arrival) {
             $arrivingTrip = $arrival->getVehicle()->getId();
             $matched = false;
@@ -121,7 +118,7 @@ class LiveboardsRepository
                         $departures[$i]->getVehicle());
 
                     $wipeArrivalIds[] = $id;
-                    $wipeDepartureIds[] = $id;
+                    $wipeDepartureIds[] = $i;
                     $matched = true;
                 }
                 $i++;

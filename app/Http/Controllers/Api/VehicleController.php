@@ -16,7 +16,6 @@ class VehicleController extends Controller
     public function getVehicle(HyperrailRequest $request, string $id, string $date)
     {
         $language = $request->getLanguage();
-$id = stripslashes(urldecode($id));
 
         $cacheKey = "hyperrail|vehicle|$id|$language";
         if (Cache::has($cacheKey)) {

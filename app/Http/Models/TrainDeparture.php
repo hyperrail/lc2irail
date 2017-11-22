@@ -15,12 +15,13 @@ class TrainDeparture extends TrainStopBase implements \JsonSerializable
 
     public function __construct(
         string $uri,
-        VehicleStub $vehicle,
-        int $platform,
         Carbon $departureTime,
-        int $departureDelay
+        int $departureDelay,
+        int $platform,
+        VehicleStub $vehicle = null,
+        Station $station = null
     ) {
-        parent::__construct($uri, $platform, $vehicle);
+        parent::__construct($uri, $platform, $vehicle, $station);
         $this->departureTime = $departureTime;
         $this->departureTimestamp = $this->departureTime->toAtomString();
         $this->departureDelay = $departureDelay;
@@ -48,6 +49,9 @@ class TrainDeparture extends TrainStopBase implements \JsonSerializable
         unset ($vars['departureTime']);
         if ($this->getVehicle() == null) {
             unset($vars['vehicle']);
+        }
+        if ($this->getStation() == null) {
+            unset($vars['station']);
         }
         return $vars;
     }
