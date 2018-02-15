@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 
 
-use App\Http\Repositories\LinkedConnectionsRepository;
+use App\Http\Repositories\LinkedConnectionsRawRepositoryContract;
+use App\Http\Repositories\LinkedConnectionsRepositoryContract;
+use App\Http\Repositories\LinkedConnectionsWebRepository;
 use App\Http\Repositories\LiveboardsRepositoryContract;
 use App\Http\Requests\HyperrailRequest;
 
@@ -18,7 +20,7 @@ class LinkedConnectionController extends Controller
 
     public function getConnections(HyperrailRequest $request)
     {
-        $repository = new LinkedConnectionsRepository();
+        $repository = app(LinkedConnectionsRawRepositoryContract::class);
         $filtered = $repository->getRawLinkedConnections($request->getDateTime());
 
         return response()->json($filtered['data'], 200)->withHeaders([
@@ -34,7 +36,7 @@ class LinkedConnectionController extends Controller
         /**
          * @var $repository LiveboardsRepositoryContract
          */
-        $repository = new LinkedConnectionsRepository();
+        $repository = app(LinkedConnectionsRepositoryContract::class);
         $filtered = $repository->getFilteredLinkedConnections($request->getDateTime(), urldecode($key),
             urldecode($operator), urldecode($value));
 

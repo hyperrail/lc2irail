@@ -54,6 +54,12 @@ $app->singleton(
 );
 
 $app->singleton(
+    App\Http\Repositories\LinkedConnectionsRawRepositoryContract::class,
+    App\Http\Repositories\LinkedConnectionsLocalRepository::class
+);
+
+
+$app->singleton(
     App\Http\Repositories\LiveboardsRepositoryContract::class,
     App\Http\Repositories\LiveboardsRepository::class
 );

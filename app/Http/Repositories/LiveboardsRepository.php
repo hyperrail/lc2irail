@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Log;
  *
  * @package App\Http\Controllers
  */
-class LiveboardsRepository
+class LiveboardsRepository implements LiveboardsRepositoryContract
 {
 
     /**
@@ -47,7 +47,6 @@ class LiveboardsRepository
          */
         $linkedConnectionsData = $repository->getLinkedConnectionsInWindow($departureTime, $window);
         $linkedConnections = $linkedConnectionsData->getLinkedConnections();
-
         //Log::info("Got " . sizeof($linkedConnections) . " departures");
 
         /**

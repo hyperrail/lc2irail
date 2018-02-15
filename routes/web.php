@@ -34,10 +34,6 @@ $app->group(['prefix' => '/disturbances'], function () use ($app) {
     $app->get('/','Api\DisturbanceController@getDisturbances');
 });
 
-$app->group(['prefix' => '/stats'], function () use ($app) {
-    $app->get('/{vehicles}','Api\StatsController@getStats');
-});
-
 $app->group(['prefix' => '/linkedconnections'], function () use ($app) {
     $app->get('/{key}/{operator}/{value}','Api\LinkedConnectionController@getFilteredConnections');
     $app->get('/','Api\LinkedConnectionController@getConnections');

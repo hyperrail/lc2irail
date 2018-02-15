@@ -18,8 +18,8 @@ use App\Http\Models\LinkedConnection;
 class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 {
 
-    var $BASE_URL;
     const PAGE_SIZE_SECONDS = 600;
+    private $rawLinkedConnectionsSource;
 
     /**
      * Create a new repository instance.
@@ -28,19 +28,9 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      */
     public function __construct()
     {
-        $this->BASE_URL = env("LINKED_CONNECTIONS","https://graph.irail.be/sncb/connection");
+        $this->rawLinkedConnectionsSource = app(LinkedConnectionsRawRepositoryContract::class);
     }
 
-    /**
-     * Build the URL to retrieve data from LinkedConnections
-     *
-     * @param Carbon $departureTime
-     * @return string
-     */
-    private function getLinkedConnectionsURL(Carbon $departureTime): string
-    {
-        return $this->BASE_URL . "?departureTime=" . date_format($departureTime, 'Y-m-d\TH:i:s') . '.000Z';
-    }
 
     /**
      * Retrieve an array of LinkedConnection objects for a certain departure time
@@ -53,21 +43,22 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         $filterKey,
         $filterOperator,
         $filterValue
-    ): array {
+    ): array
+    {
 
-        $raw = $this->getRawLinkedConnections($departureTime);
+        $raw = $this->rawLinkedConnectionsSource->getRawLinkedConnections($departureTime);
 
         $filterValue = urldecode($filterValue);
-        if ($filterKey == null) {
+        if ($filterKey == null || $filterOperator == null || $filterValue == null) {
             return $raw;
         }
 
-        foreach ($raw['data']['@graph'] as $key => &$entry) {
+        foreach ($raw['data'] as $key => &$entry) {
 
-            if (! key_exists('arrivalDelay', $entry)) {
+            if (!key_exists('arrivalDelay', $entry)) {
                 $entry['arrivalDelay'] = 0;
             }
-            if (! key_exists('departureDelay', $entry)) {
+            if (!key_exists('departureDelay', $entry)) {
                 $entry['departureDelay'] = 0;
             }
             $keep = false;
@@ -80,32 +71,34 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                     $keep = ($entry[$filterKey] != $filterValue);
                     break;
                 case '<':
-                    $keep = ( $entry[$filterKey] <  $filterValue);
+                    $keep = ($entry[$filterKey] < $filterValue);
                     break;
                 case '<=':
-                    $keep = ( $entry[$filterKey] <=  $filterValue);
+                    $keep = ($entry[$filterKey] <= $filterValue);
                     break;
                 case '>':
-                    $keep = ( $entry[$filterKey] >  $filterValue);
+                    $keep = ($entry[$filterKey] > $filterValue);
                     break;
                 case '>=':
-                    $keep = ( $entry[$filterKey] >=  $filterValue);
+                    $keep = ($entry[$filterKey] >= $filterValue);
                     break;
             }
-            if (! $keep) {
+            if (!$keep) {
                 // Remove this from the results
-                unset($raw['data']['@graph'][$key]);
+                unset($raw['data'][$key]);
             }
 
         }
-        $raw['data']['@graph'] = array_values($raw['data']['@graph']);
+
+        $raw['data'] = array_values($raw['data']);
         return $raw;
     }
 
     public function getLinkedConnectionsInWindow(
         Carbon $departureTime,
         int $window = self::PAGE_SIZE_SECONDS
-    ): LinkedConnectionPage {
+    ): LinkedConnectionPage
+    {
         $departureTime = $departureTime->copy();
         $departureTime = $this->getRoundedDepartureTime($departureTime);
 
@@ -150,8 +143,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
         $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag);
 
-        // Cache for 2 hours
-        Cache::put($cacheKey, $combinedPage, 120);
+        Cache::put($cacheKey, $combinedPage, $expiresAt);
 
         return $combinedPage;
     }
@@ -159,13 +151,14 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
     /**
      * Get the first n linked connections, starting at a certain time
      * @param \Carbon\Carbon $departureTime The departure time from where the search should start
-     * @param int            $results The number of linked connections to retrieve
+     * @param int $results The number of linked connections to retrieve
      * @return \App\Http\Models\LinkedConnectionPage A linkedConnections page containing all results
      */
     public function getConnectionsByLimit(
         Carbon $departureTime,
         int $results
-    ): LinkedConnectionPage {
+    ): LinkedConnectionPage
+    {
         $departureTime = $this->getRoundedDepartureTime($departureTime);
 
         $cacheKey = 'lc|' . $departureTime->getTimestamp() . "|" . $results;
@@ -207,8 +200,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
         $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag);
 
-        // Cache for 2 hours
-        Cache::put($cacheKey, $combinedPage, 120);
+        Cache::put($cacheKey, $combinedPage, $expiresAt);
 
         return $combinedPage;
     }
@@ -227,138 +219,47 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
             return Cache::get($cacheKey);
         }
 
-        $raw = $this->getRawLinkedConnections($departureTime);
-        $decoded = $raw['data'];
+        $raw = $this->rawLinkedConnectionsSource->getRawLinkedConnections($departureTime);
         $expiresAt = $raw['expiresAt'];
         $etag = $raw['etag'];
         $createdAt = $raw['createdAt'];
 
         $linkedConnections = [];
-        if ($decoded != null && key_exists('@graph', $decoded)) {
-            foreach ($decoded['@graph'] as $entry) {
-                $arrivalDelay = key_exists('arrivalDelay', $entry) ? $entry['arrivalDelay'] : 0;
-                $departureDelay = key_exists('departureDelay', $entry) ? $entry['departureDelay'] : 0;
 
-                if (ends_with($departureDelay,"S") ){
-                    $departureDelay = substr($departureDelay,0,strlen($departureDelay)-1);
-                }
+        foreach ($raw['data'] as $entry) {
+            $arrivalDelay = key_exists('arrivalDelay', $entry) ? $entry['arrivalDelay'] : 0;
+            $departureDelay = key_exists('departureDelay', $entry) ? $entry['departureDelay'] : 0;
 
-                if (ends_with($arrivalDelay,"S") ){
-                    $arrivalDelay = substr($arrivalDelay,0,strlen($arrivalDelay)-1);
-                }
-
-                $linkedConnections[] = new LinkedConnection($entry['@id'],
-                    $entry['departureStop'],
-                    strtotime($entry['departureTime']),
-                    $departureDelay,
-                    $entry['arrivalStop'],
-                    strtotime($entry['arrivalTime']),
-                    $arrivalDelay,
-                    $entry['direction'],
-                    $entry['gtfs:trip'],
-                    $entry['gtfs:route']
-                );
+            if (ends_with($departureDelay, "S")) {
+                $departureDelay = substr($departureDelay, 0, strlen($departureDelay) - 1);
             }
-        } else {
-            Log::Warning("Could not retrieve data for " . $departureTime);
+
+            if (ends_with($arrivalDelay, "S")) {
+                $arrivalDelay = substr($arrivalDelay, 0, strlen($arrivalDelay) - 1);
+            }
+
+            $linkedConnections[] = new LinkedConnection($entry['@id'],
+                $entry['departureStop'],
+                strtotime($entry['departureTime']),
+                $departureDelay,
+                $entry['arrivalStop'],
+                strtotime($entry['arrivalTime']),
+                $arrivalDelay,
+                $entry['direction'],
+                $entry['gtfs:trip'],
+                $entry['gtfs:route']
+            );
         }
         $linkedConnectionsPage = new LinkedConnectionPage($linkedConnections, $createdAt, $expiresAt, $etag);
 
-        // Cache for 1 minute //TODO: lower to 30 secs
-        Cache::put($cacheKey, $linkedConnectionsPage, 1);
+        Cache::put($cacheKey, $linkedConnectionsPage, $expiresAt);
 
         return $linkedConnectionsPage;
     }
 
-    public function getRawLinkedConnections(Carbon $departureTime)
+
+    private function getRoundedDepartureTime(Carbon $departureTime): Carbon
     {
-        $departureTime = $departureTime->copy();
-        $departureTime = $this->getRoundedDepartureTime($departureTime);
-
-        $pageCacheKey = 'lcraw|' . $departureTime->getTimestamp();
-
-        // Page (array including json, etag and expiresAt), kept for 2 hours so we can reuse the etag
-        if (Cache::has($pageCacheKey)) {
-            /**
-             * @var $previousResponse LinkedConnectionPage
-             */
-            $previousResponse = Cache::get($pageCacheKey);
-
-            // Check if cache is still valid
-            $now = Carbon::now();
-            if ($now->lessThan($previousResponse['expiresAt']) || ($departureTime->lessThan($now) && $departureTime->diffInSeconds($now) > self::PAGE_SIZE_SECONDS)) {
-                $raw = $previousResponse;
-            }
-        }
-
-        // If not valid, retrieve (but try Etag as well)
-        if (! isset($raw)) {
-
-            // No previous data, or previous data too old: re-validate
-            $endpoint = $this->getLinkedConnectionsURL($departureTime);
-
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $endpoint);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-
-            // If we have a cached old value, included header for conditional get
-            if (isset($previousResponse)) {
-                curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                    'If-None-Match: "' . $previousResponse['etag'] . '"',
-                ));
-            }
-
-            $headers = [];
-            // this function is called by curl for each header received
-            curl_setopt($ch, CURLOPT_HEADERFUNCTION,
-                function ($curl, $header) use (&$headers) {
-                    $len = strlen($header);
-                    $header = explode(':', $header, 2);
-                    if (count($header) < 2) // ignore invalid headers
-                    {
-                        return $len;
-                    }
-
-                    $name = strtolower(trim($header[0]));
-                    if (! array_key_exists($name, $headers)) {
-                        $headers[$name] = [trim($header[1])];
-                    } else {
-                        $headers[$name][] = trim($header[1]);
-                    }
-
-                    return $len;
-                }
-            );
-
-            $data = curl_exec($ch);
-            $info = curl_getinfo($ch);
-            curl_close($ch);
-
-            $etag = $headers['etag'][0];
-            if (starts_with($etag, 'W/')) {
-                $etag = substr($etag, 2);
-            }
-            $etag = trim($etag, '"');
-            $expiresAt = Carbon::createFromTimestamp(strtotime($headers['expires'][0]));
-
-            if (isset($raw) && ($info['http_code'] == 304 || $etag == $raw['etag'])) {
-                // ETag unchanged, or header status code indicating no change
-                // Just keep the raw data
-            } else {
-                $json = json_decode($data, true);
-
-                $raw = ['data' => $json, 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon()];
-                // Cache for 2 hours
-                Cache::put($pageCacheKey, $raw, 120);
-            }
-
-        }
-
-        return $raw;
-    }
-
-    private function getRoundedDepartureTime(Carbon $departureTime) : Carbon {
         return $departureTime->subMinute($departureTime->minute % 10)->second(0);
     }
 }
