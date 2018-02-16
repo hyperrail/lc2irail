@@ -27,7 +27,7 @@ class LiveboardController extends Controller
         $language = $request->getLanguage();
 
         $station = new Station($id, $language);
-        $cacheKey = "hyperrail|liveboard|$id|$window|$language";
+        $cacheKey = "lc2irail|liveboard|$id|$window|$language";
         if (Cache::has($cacheKey)) {
             /**
              * @var $liveboard Liveboard
@@ -47,7 +47,7 @@ class LiveboardController extends Controller
         $repository = new LiveboardsRepository();
         $liveboard = $repository->getDepartures($station, $request->getDateTime(), $language, $window);
         Cache::put($cacheKey, $liveboard, $liveboard->getExpiresAt());
-        Log::info("LIVE, cached until " .  $liveboard->getExpiresAt());
+
         return response()->json($liveboard, 200) ->withHeaders([
             'Expires' => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
             'Cache-Control' => 'max-age=' . $liveboard->getExpiresAt()->diffInSeconds(new Carbon()),

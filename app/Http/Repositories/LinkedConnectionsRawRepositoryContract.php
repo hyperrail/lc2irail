@@ -19,9 +19,10 @@ interface LinkedConnectionsRawRepositoryContract
     /**
      * Retrieve raw LinkedConnection data
      *
-     * @param Carbon $departureTime The time for which departures should be returned
+     * @param Carbon $pointer The pointer to which data should be retrieved.
+     *                        This can either be a Carbon datetime, or any object returned as next/previous pointer by a previous response.
      * @return Array
      */
-    public function getRawLinkedConnections(Carbon $departureTime);
+    public function getRawLinkedConnections($pointer);
 
 }

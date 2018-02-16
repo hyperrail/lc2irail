@@ -4,6 +4,11 @@ An API, compliant to the original iRail API, based on linkedconnections.
 This project provides a lightweight API, based on the Lumen microframework. 
 It aims at providing an API for Belgian rail, backwards compatible with the original iRail api.
 
+## Installation
+* Run composer install
+* Run composer install for vendor/irail/stations
+* Set APC to have at least 512MB of cache!
+
 ## Enpoints
 
 Endpoints for backwards compatibility are between brackets.

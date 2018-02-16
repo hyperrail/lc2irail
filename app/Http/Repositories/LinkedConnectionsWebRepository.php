@@ -17,7 +17,6 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
 {
 
     var $BASE_URL;
-    const PAGE_SIZE_SECONDS = 600;
 
     /**
      * Create a new repository instance.
@@ -37,16 +36,26 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
      */
     private function getLinkedConnectionsURL(Carbon $departureTime): string
     {
+        $departureTime = $departureTime->copy();
+        $departureTime = $this->getRoundedDepartureTime($departureTime);
         return $this->BASE_URL . "?departureTime=" . date_format($departureTime, 'Y-m-d\TH:i:s') . '.000Z';
     }
 
 
-    public function getRawLinkedConnections(Carbon $departureTime)
+    public function getRawLinkedConnections($pointer)
     {
-        $departureTime = $departureTime->copy();
-        $departureTime = $this->getRoundedDepartureTime($departureTime);
+        if ($pointer instanceof Carbon) {
+            return $this->getRawLinkedConnectionsByUrl($this->getLinkedConnectionsURL($pointer));
+        } elseif (is_string($pointer)) {
+            return $this->getRawLinkedConnectionsByUrl($pointer);
+        } else {
+            throw new \InvalidArgumentException("Invalid argument type");
+        }
+    }
 
-        $pageCacheKey = 'lcraw|' . $departureTime->getTimestamp();
+    private function getRawLinkedConnectionsByUrl($url)
+    {
+        $pageCacheKey = 'lcraw|' . $url;
 
         // Page (array including json, etag and expiresAt), kept for 2 hours so we can reuse the etag
         if (Cache::has($pageCacheKey)) {
@@ -57,7 +66,7 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
 
             // Check if cache is still valid
             $now = Carbon::now();
-            if ($now->lessThan($previousResponse['expiresAt']) || ($departureTime->lessThan($now) && $departureTime->diffInSeconds($now) > self::PAGE_SIZE_SECONDS)) {
+            if ($now->lessThan($previousResponse['expiresAt'])) {
                 $raw = $previousResponse;
             }
         }
@@ -66,7 +75,7 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
         if (!isset($raw)) {
 
             // No previous data, or previous data too old: re-validate
-            $endpoint = $this->getLinkedConnectionsURL($departureTime);
+            $endpoint = $this->getLinkedConnectionsURL($url);
 
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $endpoint);
@@ -113,11 +122,17 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
             $etag = trim($etag, '"');
             $expiresAt = Carbon::createFromTimestamp(strtotime($headers['expires'][0]));
 
-            $json = json_decode($data, true);
+            if (isset($previousResponse) && ($info['http_code'] == 304 || $etag == $previousResponse['etag'])) {
+                // ETag unchanged, or header status code indicating no change
+                // Just keep the raw data
+                // No body is sent in this case!
+            } else {
+                $json = json_decode($data, true);
 
-            $raw = ['data' => $json['@graph'], 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon()];
+                $raw = ['data' => $json['@graph'], 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon(), 'next' => $json['hydra:next'], 'previous' => $json['hydra:previous']];
 
-            Cache::put($pageCacheKey, $raw, $expiresAt);
+                Cache::put($pageCacheKey, $raw, $expiresAt);
+            }
 
         }
 

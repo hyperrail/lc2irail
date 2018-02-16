@@ -31,6 +31,9 @@ class LinkedConnectionPage
      * @var Carbon
      */
     private $expiresAt;
+    
+    private $next;
+    private $previous;
 
     /**
      * @return Carbon
@@ -41,12 +44,14 @@ class LinkedConnectionPage
     }
 
 
-    public function __construct(array $linkedConnections, Carbon $createdAt, Carbon $expiresAt, string $etag)
+    public function __construct(array $linkedConnections, Carbon $createdAt, Carbon $expiresAt, string $etag, $previous, $next)
     {
         $this->linkedConnections = $linkedConnections;
         $this->etag = $etag;
         $this->createdAt = $createdAt;
         $this->expiresAt = $expiresAt;
+        $this->previous = $previous;
+        $this->next = $next;
     }
 
     /**

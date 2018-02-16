@@ -102,15 +102,13 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         $departureTime = $departureTime->copy();
         $departureTime = $this->getRoundedDepartureTime($departureTime);
 
-        $cacheKey = 'lc|' . $departureTime->getTimestamp() . "|" . $window;
+        $cacheKey = 'lc|getLinkedConnectionsInWindow|' . $departureTime->getTimestamp() . "|" . $window;
         if (Cache::has($cacheKey)) {
             $previousResponse = Cache::get($cacheKey);
-            $previousDate = $previousResponse->getCreatedAt();
-            $now = new Carbon();
 
             // If data isn't too old, just return for faster responses
             if (Carbon::now()
-                    ->lessThan($previousResponse->getExpiresAt()) || ($departureTime->lessThan($now) && $departureTime->diffInSeconds($now) > self::PAGE_SIZE_SECONDS)) {
+                ->lessThan($previousResponse->getExpiresAt())) {
                 return $previousResponse;
             }
         }
@@ -134,16 +132,15 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
         // Calculate a new etag based on the concatenation of all other etags
         $etag = md5($etag);
-        if (isset($previousResponse) && $etag == $previousResponse->getEtag()) {
-            Log::info("Unchanged combined page!");
 
-            // return the response with the old creation date, we can use this later on for HTTP headers
+        if (isset($previousResponse) && $etag == $previousResponse->getEtag()) {
+            // If nothing changed, return the previous response. This way we get to keep the created_at date for caching purposes.
             return $previousResponse;
         }
 
         $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag);
 
-        Cache::put($cacheKey, $combinedPage, $expiresAt);
+        Cache::put($cacheKey, $combinedPage, 120);
 
         return $combinedPage;
     }
@@ -161,15 +158,13 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
     {
         $departureTime = $this->getRoundedDepartureTime($departureTime);
 
-        $cacheKey = 'lc|' . $departureTime->getTimestamp() . "|" . $results;
+        $cacheKey = 'lc|getConnectionsByLimit|' . $departureTime->getTimestamp() . "|" . $results;
         if (Cache::has($cacheKey)) {
             $previousResponse = Cache::get($cacheKey);
-            $previousDate = $previousResponse->getCreatedAt();
-            $now = new Carbon();
 
             // If data isn't too old, just return for faster responses
             if (Carbon::now()
-                    ->lessThan($previousResponse->getExpiresAt()) || ($departureTime->lessThan($now) && $departureTime->diffInSeconds($now) > self::PAGE_SIZE_SECONDS)) {
+                ->lessThan($previousResponse->getExpiresAt())) {
                 return $previousResponse;
             }
         }
@@ -200,7 +195,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
         $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag);
 
-        Cache::put($cacheKey, $combinedPage, $expiresAt);
+        Cache::put($cacheKey, $combinedPage, 120);
 
         return $combinedPage;
     }
@@ -214,7 +209,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      */
     public function getLinkedConnections(Carbon $departureTime): LinkedConnectionPage
     {
-        $cacheKey = 'lcpage|' . $departureTime->getTimestamp();
+        $cacheKey = 'lc|getLinkedConnections|' . $departureTime->getTimestamp();
         if (Cache::has($cacheKey)) {
             return Cache::get($cacheKey);
         }
@@ -250,7 +245,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $entry['gtfs:route']
             );
         }
-        $linkedConnectionsPage = new LinkedConnectionPage($linkedConnections, $createdAt, $expiresAt, $etag);
+        $linkedConnectionsPage = new LinkedConnectionPage($linkedConnections, $createdAt, $expiresAt, $etag, $raw['previous'], $raw['next']);
 
         Cache::put($cacheKey, $linkedConnectionsPage, $expiresAt);
 

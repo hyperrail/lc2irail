@@ -40,7 +40,7 @@ class VehicleRepository implements  VehicleRepositoryContract
         $prevArrivalDelay = null;
         $prevArrivalStop = null;
 
-        $oldestCreatedAt = null;
+        $newestCreatedAt = null;
         $oldestExpiresAt = null;
         $etag = null;
 
@@ -56,8 +56,8 @@ class VehicleRepository implements  VehicleRepositoryContract
             // Increase for next query. 3600 pages are widespread used through the application, meaning more chance for it to be cached
             $datestamp->addSeconds(3600);
 
-            if ($oldestCreatedAt == null || $linkedConnectionsData->getCreatedAt()->lessThan($oldestCreatedAt)) {
-                $oldestCreatedAt = $linkedConnectionsData->getCreatedAt();
+            if ($newestCreatedAt == null || $linkedConnectionsData->getCreatedAt()->greaterThan($newestCreatedAt)) {
+                $newestCreatedAt = $linkedConnectionsData->getCreatedAt();
             }
 
 
@@ -126,7 +126,7 @@ class VehicleRepository implements  VehicleRepositoryContract
             new Station($prevArrivalStop, $language)
         );
 
-        return new Vehicle($trip, $vehicleName, $direction, $stops, $oldestCreatedAt,
+        return new Vehicle($trip, $vehicleName, $direction, $stops, $newestCreatedAt,
             $oldestExpiresAt, md5($etag));
     }
 }

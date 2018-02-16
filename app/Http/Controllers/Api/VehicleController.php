@@ -17,7 +17,7 @@ class VehicleController extends Controller
     {
         $language = $request->getLanguage();
 
-        $cacheKey = "hyperrail|vehicle|$id|$language";
+        $cacheKey = "lc2irail|vehicle|$id|$language";
         if (Cache::has($cacheKey)) {
             /**
              * @var $vehicle Vehicle
@@ -37,7 +37,7 @@ class VehicleController extends Controller
         $repository = new VehicleRepository();
         $vehicle = $repository->getVehicle($id, $date, $language);
         Cache::put($cacheKey, $vehicle, $vehicle->getExpiresAt());
-        Log::info("LIVE, cached until " .  $vehicle->getExpiresAt());
+
         return response()->json($vehicle, 200) ->withHeaders([
             'Expires' => $vehicle->getExpiresAt()->format('D, d M Y H:i:s e'),
             'Cache-Control' => 'max-age=' . $vehicle->getExpiresAt()->diffInSeconds(new Carbon()),
