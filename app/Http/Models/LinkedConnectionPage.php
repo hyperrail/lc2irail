@@ -78,4 +78,20 @@ class LinkedConnectionPage
         return $this->expiresAt;
     }
 
+    /**
+     * @return mixed
+     */
+    public function getPreviousPointer()
+    {
+        return $this->previous;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getNextPointer()
+    {
+        return $this->next;
+    }
+
 }

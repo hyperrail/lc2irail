@@ -116,10 +116,26 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         $departures = [];
         $etag = "";
         $expiresAt = null;
+        $prev = null;
+        $next = null;
 
-        for ($addedSeconds = 0; $addedSeconds < $window; $addedSeconds += self::PAGE_SIZE_SECONDS) {
-            $windowPage = $this->getLinkedConnections($departureTime);
+        // Compare by timestamps as departure times are also stored as timestamps
+        $lastDepartureTime = $departureTime->getTimestamp();
+        $maxDepartureTime = $departureTime->copy()->addSeconds($window)->getTimestamp();
+        $pointer = $departureTime;
+
+        while ($lastDepartureTime < $maxDepartureTime) {
+
+            $windowPage = $this->getLinkedConnections($pointer);
+            $pointer = $windowPage->getNextPointer();
+
             $departures = array_merge($departures, $windowPage->getLinkedConnections());
+
+            // Update the latest departure time in our results list
+            if (count($departures) > 0) {
+                $lastDepartureTime = $departures[count($departures) - 1]->getDepartureTime();
+            }
+
 
             $etag .= $windowPage->getEtag();
 
@@ -127,7 +143,11 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $expiresAt = $windowPage->getExpiresAt();
             }
 
-            $departureTime = $departureTime->addSeconds(self::PAGE_SIZE_SECONDS);
+            // Update variables to keep the prev and next pointers for our "larger" page
+            if ($prev == null) {
+                $prev = $windowPage->getPreviousPointer();
+            }
+            $next = $windowPage->getNextPointer();
         }
 
         // Calculate a new etag based on the concatenation of all other etags
@@ -138,7 +158,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
             return $previousResponse;
         }
 
-        $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag);
+        $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag, $prev, $next);
 
         Cache::put($cacheKey, $combinedPage, 120);
 
@@ -151,7 +171,8 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      * @param int $results The number of linked connections to retrieve
      * @return \App\Http\Models\LinkedConnectionPage A linkedConnections page containing all results
      */
-    public function getConnectionsByLimit(
+    public
+    function getConnectionsByLimit(
         Carbon $departureTime,
         int $results
     ): LinkedConnectionPage
@@ -169,12 +190,18 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
             }
         }
 
+        $pointer = $departureTime;
+
         $departures = [];
         $etag = "";
         $expiresAt = null;
+        $prev = null;
+        $next = null;
 
-        for ($addedSeconds = 0; $results < count($departures); $addedSeconds += self::PAGE_SIZE_SECONDS) {
-            $windowPage = $this->getLinkedConnections($departureTime);
+        while ($results < count($departures)) {
+            $windowPage = $this->getLinkedConnections($pointer);
+            $pointer = $windowPage->getNextPointer();
+
             $departures = array_merge($departures, $windowPage->getLinkedConnections());
 
             $etag .= $windowPage->getEtag();
@@ -183,7 +210,10 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $expiresAt = $windowPage->getExpiresAt();
             }
 
-            $departureTime->addSeconds(self::PAGE_SIZE_SECONDS);
+            if ($prev == null) {
+                $prev = $windowPage->getPreviousPointer();
+            }
+            $next = $windowPage->getNextPointer();
         }
 
         // Calculate a new etag based on the concatenation of all other etags
@@ -193,7 +223,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
             return $previousResponse;
         }
 
-        $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag);
+        $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag, $prev, $next);
 
         Cache::put($cacheKey, $combinedPage, 120);
 
@@ -207,7 +237,8 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      * @param Carbon $departureTime
      * @return \App\Http\Models\LinkedConnectionPage
      */
-    public function getLinkedConnections(Carbon $departureTime): LinkedConnectionPage
+    public
+    function getLinkedConnections(Carbon $departureTime): LinkedConnectionPage
     {
         $cacheKey = 'lc|getLinkedConnections|' . $departureTime->getTimestamp();
         if (Cache::has($cacheKey)) {
@@ -253,7 +284,8 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
     }
 
 
-    private function getRoundedDepartureTime(Carbon $departureTime): Carbon
+    private
+    function getRoundedDepartureTime(Carbon $departureTime): Carbon
     {
         return $departureTime->subMinute($departureTime->minute % 10)->second(0);
     }

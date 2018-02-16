@@ -24,7 +24,7 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
     // Example realtime data: /real_time/sncb/2018_2_14/2018-12-09T00:30:00.000Z.jsonld.gz
 
     var $BASE_DIRECTORY;
-    const PAGE_SIZE_SECONDS = 600;
+    const PAGE_SIZE_MINUTES = 10;
     private $AGENCY;
 
     /**
@@ -130,8 +130,8 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
                 }
             }
 
-            $next = $departureTime->copy()->addSeconds(self::PAGE_SIZE_SECONDS);
-            $previous = $departureTime->copy()->subSeconds(self::PAGE_SIZE_SECONDS);
+            $next = $departureTime->copy()->addMinutes(self::PAGE_SIZE_MINUTES);
+            $previous = $departureTime->copy()->subMinutes(self::PAGE_SIZE_MINUTES);
 
             $raw = ['data' => array_values($departures), 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon(), 'next' => $next, 'previous' => $previous];
 
