@@ -31,6 +31,7 @@ class LinkedConnectionPage
      * @var Carbon
      */
     private $expiresAt;
+
     
     private $next;
     private $previous;
@@ -76,6 +77,14 @@ class LinkedConnectionPage
     public function getExpiresAt(): \Carbon\Carbon
     {
         return $this->expiresAt;
+    }
+
+    /**
+     * @param Carbon $expiresAt
+     */
+    public function setExpiresAt(Carbon $expiresAt): void
+    {
+        $this->expiresAt = $expiresAt;
     }
 
     /**

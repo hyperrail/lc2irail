@@ -54,89 +54,80 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         $pageCacheKey = 'lc|getRawLinkedConnections|' . $departureTime->getTimestamp();
 
         if (Cache::has($pageCacheKey)) {
-            /**
-             * @var $raw LinkedConnectionPage
-             */
-            $raw = Cache::get($pageCacheKey);
+            return Cache::get($pageCacheKey);
         }
 
-        // If not valid, retrieve (but try Etag as well)
-        if (!isset($raw)) {
 
-            $departureTime->setTimezone('UTC');
-            $scheduledBase = $this->BASE_DIRECTORY . '/linked_pages/' . $this->AGENCY;
-            $realtimeBase = $this->BASE_DIRECTORY . '/real_time/' . $this->AGENCY;
+        $departureTime->setTimezone('UTC');
+        $scheduledBase = $this->BASE_DIRECTORY . '/linked_pages/' . $this->AGENCY;
+        $realtimeBase = $this->BASE_DIRECTORY . '/real_time/' . $this->AGENCY;
 
-            $scheduledMostRecent = array_diff(scandir($scheduledBase, SCANDIR_SORT_DESCENDING), array('..', '.'))[0];
+        $scheduledMostRecent = array_diff(scandir($scheduledBase, SCANDIR_SORT_DESCENDING), array('..', '.'))[0];
 
-            // TODO: check if this behaviour is correct when there are multiple folders
-            $scheduledFilePath = $scheduledBase . '/' . $scheduledMostRecent . '/' . date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld.gz';
+        // TODO: check if this behaviour is correct when there are multiple folders
+        // TODO: what should be done while the generation is running (old complete data and new incomplete data available)
+        $scheduledFilePath = $scheduledBase . '/' . $scheduledMostRecent . '/' . date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld.gz';
 
-            // Hacky date_format thingy to remove a leading zero in a month
-            $realtimeDataCompressed = false;
-            $realtimeFilePath = $realtimeBase . '/' . date_format($departureTime, 'Y_') . (int)date_format($departureTime, 'm') . date_format($departureTime, '_d') . '/' . date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld';
-            if (!file_exists($realtimeFilePath)) {
-                $realtimeDataCompressed = true;
-                $realtimeFilePath .= ".gz";
-            }
-
-            $scheduledModified = 0;
-            if (file_exists($scheduledFilePath)) {
-                $scheduledModified = filemtime($scheduledFilePath);
-            }
-
-            $realtimeModified = 0;
-            if (file_exists($realtimeFilePath)) {
-                $realtimeModified = filemtime($realtimeFilePath);
-            }
-
-            $etag = md5($scheduledFilePath . $scheduledModified . $realtimeModified);
-
-            $departures = [];
-
-            // data which is more than 2 hours old can be cached for 1 hour
-            if ($departureTime < Carbon::now('UTC')->subMinutes(120)) {
-                $expiresAt = Carbon::now()->addHours(1);
-            } else {
-                // Will be replaced with actual datetime if realtime data is available
-                $expiresAt = Carbon::now()->addSeconds(30);
-            }
-
-            if (file_exists($scheduledFilePath)) {
-                foreach (json_decode('[' . gzdecode(file_get_contents($scheduledFilePath)) . ']', true) as $key => $entry) {
-                    if (key_exists($entry['@id'], $departures)) {
-                        //echo("DUPLICATE " . $entry['@id'] . "\n");
-                    }
-                    $departures[$entry['@id']] = $entry;
-                    $departures[$entry['@id']]['arrivalDelay'] = 0;
-                    $departures[$entry['@id']]['departureDelay'] = 0;
-                }
-            }
-
-            if (file_exists($realtimeFilePath)) {
-                // Decode realtime data if necessary
-                $realtimeContents = file_get_contents($realtimeFilePath);
-                if ($realtimeDataCompressed) {
-                    $realtimeContents = gzdecode($realtimeContents);
-                }
-
-                foreach (explode(PHP_EOL, $realtimeContents) as $entry) {
-                    $data = json_decode($entry, true);
-                    $id = $data['@id'];
-
-                    // Overwrite existing, add new
-                    $departures[$id] = $data;
-
-                }
-            }
-
-            $next = $departureTime->copy()->addMinutes(self::PAGE_SIZE_MINUTES);
-            $previous = $departureTime->copy()->subMinutes(self::PAGE_SIZE_MINUTES);
-
-            $raw = ['data' => array_values($departures), 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon(), 'next' => $next, 'previous' => $previous];
-
-            Cache::put($pageCacheKey, $raw, $expiresAt);
+        // Hacky date_format thingy to remove a leading zero in a month
+        $realtimeDataCompressed = false;
+        $realtimeFilePath = $realtimeBase . '/' . date_format($departureTime, 'Y_') . (int)date_format($departureTime, 'm') . date_format($departureTime, '_d') . '/' . date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld';
+        if (!file_exists($realtimeFilePath)) {
+            $realtimeDataCompressed = true;
+            $realtimeFilePath .= ".gz";
         }
+
+        $scheduledModified = 0;
+        if (file_exists($scheduledFilePath)) {
+            $scheduledModified = filemtime($scheduledFilePath);
+        }
+
+        $realtimeModified = 0;
+        if (file_exists($realtimeFilePath)) {
+            $realtimeModified = filemtime($realtimeFilePath);
+        }
+
+        $etag = md5($scheduledFilePath . $scheduledModified . $realtimeModified);
+
+        $departures = [];
+        // Data which is more than 2 hours old can be cached for 1 hour
+        // TODO: research exact time after which data never changes (and expiration can be set to one hour or longer)
+        if ($departureTime->lessThan(Carbon::now()->subMinutes(120))) {
+            $expiresAt = Carbon::now('UTC')->addHours(1);
+        } else {
+            $expiresAt = Carbon::now('UTC')->addSeconds(30);
+        }
+
+        if (file_exists($scheduledFilePath)) {
+            foreach (json_decode('[' . gzdecode(file_get_contents($scheduledFilePath)) . ']', true) as $key => $entry) {
+                $departures[$entry['@id']] = $entry;
+                $departures[$entry['@id']]['arrivalDelay'] = 0;
+                $departures[$entry['@id']]['departureDelay'] = 0;
+            }
+        }
+
+        if (file_exists($realtimeFilePath)) {
+            // Decode realtime data if necessary
+            $realtimeContents = file_get_contents($realtimeFilePath);
+            if ($realtimeDataCompressed) {
+                $realtimeContents = gzdecode($realtimeContents);
+            }
+
+            foreach (explode(PHP_EOL, $realtimeContents) as $entry) {
+                $data = json_decode($entry, true);
+                $id = $data['@id'];
+
+                // Overwrite existing, add new
+                $departures[$id] = $data;
+
+            }
+        }
+
+        $next = $departureTime->copy()->addMinutes(self::PAGE_SIZE_MINUTES);
+        $previous = $departureTime->copy()->subMinutes(self::PAGE_SIZE_MINUTES);
+
+        $raw = ['data' => array_values($departures), 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon('UTC'), 'next' => $next, 'previous' => $previous];
+
+        Cache::put($pageCacheKey, $raw, $expiresAt);
 
         return $raw;
     }

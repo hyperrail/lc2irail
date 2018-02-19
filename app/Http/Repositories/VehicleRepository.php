@@ -60,9 +60,8 @@ class VehicleRepository implements  VehicleRepositoryContract
                 $newestCreatedAt = $linkedConnectionsData->getCreatedAt();
             }
 
-
             if ($oldestExpiresAt == null || $linkedConnectionsData->getExpiresAt()->lessThan($oldestExpiresAt)) {
-                $oldestExpiresAt = $linkedConnectionsData->getCreatedAt();
+                $oldestExpiresAt = $linkedConnectionsData->getExpiresAt();
             }
 
 

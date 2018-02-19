@@ -18,7 +18,6 @@ use App\Http\Models\LinkedConnection;
 class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 {
 
-    const PAGE_SIZE_SECONDS = 600;
     private $rawLinkedConnectionsSource;
 
     /**
@@ -96,7 +95,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
     public function getLinkedConnectionsInWindow(
         Carbon $departureTime,
-        int $window = self::PAGE_SIZE_SECONDS
+        int $window = 3600
     ): LinkedConnectionPage
     {
         $departureTime = $departureTime->copy();
@@ -121,7 +120,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
         // Compare by timestamps as departure times are also stored as timestamps
         $lastDepartureTime = $departureTime->getTimestamp();
-        $maxDepartureTime = $departureTime->copy()->addSeconds($window)->getTimestamp();
+        $maxDepartureTime = $departureTime->getTimestamp() + $window;
         $pointer = $departureTime;
 
         while ($lastDepartureTime < $maxDepartureTime) {
@@ -136,8 +135,8 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $lastDepartureTime = $departures[count($departures) - 1]->getDepartureTime();
             }
 
-
             $etag .= $windowPage->getEtag();
+            //echo("Window page contains data which will expire at " .  $windowPage->getCreatedAt() . " researched for " . $pointer . PHP_EOL);
 
             if ($expiresAt == null || $windowPage->getExpiresAt()->lessThan($expiresAt)) {
                 $expiresAt = $windowPage->getExpiresAt();
@@ -152,15 +151,18 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
         // Calculate a new etag based on the concatenation of all other etags
         $etag = md5($etag);
-
+/*
         if (isset($previousResponse) && $etag == $previousResponse->getEtag()) {
             // If nothing changed, return the previous response. This way we get to keep the created_at date for caching purposes.
+            // This also means we can maybe send a 304, which will save a lot of data
+            $previousResponse->setExpiresAt($expiresAt); // Update expiration, otherwise any result containing this data will be instant invalid
+            Cache::put($cacheKey, $previousResponse, 120); // Update in cache to prevent looping through this every time again
             return $previousResponse;
         }
+*/
+        $combinedPage = new LinkedConnectionPage($departures, new Carbon('UTC'), $expiresAt, $etag, $prev, $next);
 
-        $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag, $prev, $next);
-
-        Cache::put($cacheKey, $combinedPage, 120);
+        Cache::put($cacheKey, $combinedPage, $expiresAt);
 
         return $combinedPage;
     }
@@ -219,11 +221,12 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         // Calculate a new etag based on the concatenation of all other etags
         $etag = md5($etag);
         if (isset($previousResponse) && $etag == $previousResponse->getEtag()) {
-            // return the response with the old creation date, we can use this later on for HTTP headers
+            // Return the response with the old creation date, we can use this later on for HTTP headers
+            // This also means we can maybe send a 304, which will save a lot of data
             return $previousResponse;
         }
 
-        $combinedPage = new LinkedConnectionPage($departures, new Carbon(), $expiresAt, $etag, $prev, $next);
+        $combinedPage = new LinkedConnectionPage($departures, new Carbon('UTC'), $expiresAt, $etag, $prev, $next);
 
         Cache::put($cacheKey, $combinedPage, 120);
 
@@ -284,8 +287,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
     }
 
 
-    private
-    function getRoundedDepartureTime(Carbon $departureTime): Carbon
+    private function getRoundedDepartureTime(Carbon $departureTime): Carbon
     {
         return $departureTime->subMinute($departureTime->minute % 10)->second(0);
     }
