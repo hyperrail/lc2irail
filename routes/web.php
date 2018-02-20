@@ -27,7 +27,11 @@ $app->group(['prefix' => '/vehicle'], function () use ($app) {
 });
 
 $app->group(['prefix' => '/connections'], function () use ($app) {
-    $app->get('/{id:\d{7}/{date:\d{8}/{vehicle}','Api\RouteController@getDepartureConnection');
+    // DepartureConnection
+    $app->get('/{stop:\d{7}}/{date:\d{8}}/{vehicle}','Api\LinkedConnectionController@getDepartureConnection');
+
+    $app->get('/{origin:\d{9}}/{destination:\d{9}}/depart','Api\ConnectionsController@getConnectionsByDeparture');
+    $app->get('/{origin:\d{9}}/{destination:\d{9}}/arrive','Api\ConnectionsController@getConnectionsByArrival');
 });
 
 $app->group(['prefix' => '/disturbances'], function () use ($app) {

@@ -9,6 +9,7 @@ use App\Http\Repositories\LinkedConnectionsRawRepositoryContract;
 use App\Http\Repositories\LinkedConnectionsRepositoryContract;
 use App\Http\Repositories\LinkedConnectionsWebRepository;
 use App\Http\Repositories\LiveboardsRepositoryContract;
+use App\Http\Repositories\VehicleRepositoryContract;
 use App\Http\Requests\HyperrailRequest;
 
 
@@ -30,6 +31,26 @@ class LinkedConnectionController extends Controller
             'ETag' => $filtered['etag'],
         ]);
     }
+
+    public function getDepartureConnection(HyperrailRequest $request, $stop, $date, $vehicle)
+    {
+        $repository = app(VehicleRepositoryContract::class);
+        $vehicle = $repository->getVehicle($vehicle, $date, $request->getLanguage());
+        $stops = $vehicle->getStops();
+        foreach ($stops as $trainstop) {
+            if ($trainstop->getStation()->getId() == "BE.NMBS.00" . $stop) {
+                return response()->json($trainstop, 200)->withHeaders([
+                    'Expires' => $vehicle->getExpiresAt()->format('D, d M Y H:i:s e'),
+                    'Cache-Control' => 'Public, max-age=' . $vehicle->getExpiresAt()->diffInSeconds(new Carbon()),
+                    'Last-Modified' => $vehicle->getCreatedAt()->format('D, d M Y H:i:s e'),
+                    'ETag' => $vehicle->getEtag()
+                ]);
+            }
+        }
+        abort(404);
+
+    }
+
 
     public function getFilteredConnections(HyperrailRequest $request, String $key, String $operator, String $value)
     {

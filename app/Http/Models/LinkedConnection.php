@@ -95,7 +95,6 @@ class LinkedConnection
         return $this->arrivalTime;
     }
 
-
     /**
      * @return mixed
      */
@@ -105,7 +104,7 @@ class LinkedConnection
     }
 
     /**
-     * @return int
+     * @return string
      */
     public function getTrip(): string
     {
@@ -114,7 +113,7 @@ class LinkedConnection
 
     /**
      * The route, also known as the vehicle
-     * @return int
+     * @return string
      */
     public function getRoute(): string
     {
