@@ -11,34 +11,34 @@
 |
 */
 
-$app->get('/', function () use ($app) {
-    return $app->version();
+$router->get('/', function () use ($router) {
+    return $router->version();
 });
 
-$app->group(['prefix' => '/liveboard'], function () use ($app) {
-    $app->get('/{id:\d{9}}','Api\LiveboardController@getLiveboard');
+$router->group(['prefix' => '/liveboard'], function () use ($router) {
+    $router->get('/{id:\d{9}}','Api\LiveboardController@getLiveboard');
     //$app->get('/{id:\d{9}}','Api\LiveboardController@getLiveboard');
-    $app->get('/{station}','Api\LiveboardController@getLiveboardByName');
+    $router->get('/{station}','Api\LiveboardController@getLiveboardByName');
 });
 
 
-$app->group(['prefix' => '/vehicle'], function () use ($app) {
-    $app->get('/{id}/{date:\d{8}}','Api\VehicleController@getVehicle');
+$router->group(['prefix' => '/vehicle'], function () use ($router) {
+    $router->get('/{id}/{date:\d{8}}','Api\VehicleController@getVehicle');
 });
 
-$app->group(['prefix' => '/connections'], function () use ($app) {
+$router->group(['prefix' => '/connections'], function () use ($router) {
     // DepartureConnection
-    $app->get('/{stop:\d{7}}/{date:\d{8}}/{vehicle}','Api\LinkedConnectionController@getDepartureConnection');
+    $router->get('/{stop:\d{7}}/{date:\d{8}}/{vehicle}','Api\LinkedConnectionController@getDepartureConnection');
 
-    $app->get('/{origin:\d{9}}/{destination:\d{9}}/depart','Api\ConnectionsController@getConnectionsByDeparture');
-    $app->get('/{origin:\d{9}}/{destination:\d{9}}/arrive','Api\ConnectionsController@getConnectionsByArrival');
+    $router->get('/{origin:\d{9}}/{destination:\d{9}}/depart','Api\ConnectionsController@getConnectionsByDeparture');
+    $router->get('/{origin:\d{9}}/{destination:\d{9}}/arrive','Api\ConnectionsController@getConnectionsByArrival');
 });
 
-$app->group(['prefix' => '/disturbances'], function () use ($app) {
-    $app->get('/','Api\DisturbanceController@getDisturbances');
+$router->group(['prefix' => '/disturbances'], function () use ($router) {
+    $router->get('/','Api\DisturbanceController@getDisturbances');
 });
 
-$app->group(['prefix' => '/linkedconnections'], function () use ($app) {
-    $app->get('/{key}/{operator}/{value}','Api\LinkedConnectionController@getFilteredConnections');
-    $app->get('/','Api\LinkedConnectionController@getConnections');
+$router->group(['prefix' => '/linkedconnections'], function () use ($router) {
+    $router->get('/{key}/{operator}/{value}','Api\LinkedConnectionController@getFilteredConnections');
+    $router->get('/','Api\LinkedConnectionController@getConnections');
 });
