@@ -66,10 +66,15 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
         // TODO: check if this behaviour is correct when there are multiple folders
         // TODO: what should be done while the generation is running (old complete data and new incomplete data available)
-        $scheduledFilePath = $scheduledBase . '/' . $scheduledMostRecent . '/' . date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld.gz';
+        $scheduledDataCompressed = false;
+        $scheduledFilePath = $scheduledBase . '/' . $scheduledMostRecent . '/' . date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld';
+        if (!file_exists($scheduledFilePath)) {
+            $scheduledDataCompressed = true;
+            $scheduledFilePath .= ".gz";
+        }
 
-        // Hacky date_format thingy to remove a leading zero in a month
         $realtimeDataCompressed = false;
+        // Hacky date_format thingy to remove a leading zero in a month
         $realtimeFilePath = $realtimeBase . '/' . date_format($departureTime, 'Y_') . (int)date_format($departureTime, 'm') . date_format($departureTime, '_d') . '/' . date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld';
         if (!file_exists($realtimeFilePath)) {
             $realtimeDataCompressed = true;
@@ -98,7 +103,16 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         }
 
         if (file_exists($scheduledFilePath)) {
-            foreach (json_decode('[' . gzdecode(file_get_contents($scheduledFilePath)) . ']', true) as $key => $entry) {
+            $data = file_get_contents($scheduledFilePath);
+            if ($scheduledDataCompressed) {
+                $data = gzdecode($data);
+            }
+
+            foreach (json_decode('[' . $data . ']', true) as $key => $entry) {
+                if ($entry["gtfs:pickupType"] != "gtfs:Regular" || $entry["gtfs:dropOffType"] != "gtfs:Regular") {
+                    continue;
+                }
+
                 $departures[$entry['@id']] = $entry;
                 $departures[$entry['@id']]['arrivalDelay'] = 0;
                 $departures[$entry['@id']]['departureDelay'] = 0;
