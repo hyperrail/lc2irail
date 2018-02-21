@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Models;
-
+use Carbon\Carbon;
 
 
 /**
@@ -37,7 +37,8 @@ class LinkedConnection
         string $direction,
         string $trip,
         string $route
-    ) {
+    )
+    {
         $this->id = $id;
 
         $this->departureStopURI = $departureStop;
@@ -53,9 +54,6 @@ class LinkedConnection
         $this->route = basename($route);
     }
 
-    /**
-     * @return string
-     */
     public function getId(): string
     {
         return $this->id;
@@ -66,18 +64,17 @@ class LinkedConnection
         return $this->departureStopURI;
     }
 
-    /**
-     * @return int
-     */
     public function getDepartureTime(): int
+    {
+        return $this->departureTime - $this->getDepartureDelay();
+    }
+
+    public function getDelayedDepartureTime(): int
     {
         return $this->departureTime;
     }
 
-    /**
-     * @return mixed
-     */
-    public function getDepartureDelay() : int
+    public function getDepartureDelay(): int
     {
         return $this->departureDelay;
     }
@@ -87,25 +84,21 @@ class LinkedConnection
         return $this->arrivalStopURI;
     }
 
-    /**
-     * @return int
-     */
     public function getArrivalTime(): int
+    {
+        return $this->arrivalTime - $this->arrivalDelay;
+    }
+
+    public function getDelayedArrivalTime(): int
     {
         return $this->arrivalTime;
     }
 
-    /**
-     * @return mixed
-     */
-    public function getArrivalDelay() : int
+    public function getArrivalDelay(): int
     {
         return $this->arrivalDelay;
     }
 
-    /**
-     * @return string
-     */
     public function getTrip(): string
     {
         return $this->trip;
@@ -121,7 +114,8 @@ class LinkedConnection
     }
 
     /**
-     * @return mixed
+     * The direction headsign, which may or may not be a station, but should not be treated as a station unless you want crashing code somewhere in the future
+     * @return string
      */
     public function getDirection()
     {
