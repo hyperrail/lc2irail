@@ -59,16 +59,16 @@ class Journey implements \JsonSerializable
      */
     private $arrivalStation;
 
-    public function __construct(\App\Http\Models\LinkedConnection $departureConnection, \App\Http\Models\LinkedConnection $arrivalConnection)
+    public function __construct(\App\Http\Models\LinkedConnection $departureConnection, \App\Http\Models\LinkedConnection $arrivalConnection, $language)
     {
         $this->departureConnection = $departureConnection->getId();
-        $this->departureStation = new Station($departureConnection->getDepartureStopUri());
+        $this->departureStation = new Station($departureConnection->getDepartureStopUri(), $language);
         $this->scheduledDepartureTime = Carbon::createFromTimestamp($departureConnection->getDepartureTime());
         $this->departureDelay = $departureConnection->getDepartureDelay();
         $this->scheduledDepartureTimeStamp = $this->scheduledDepartureTime->toAtomString();
 
         $this->arrivalConnection = $arrivalConnection->getId();
-        $this->arrivalStation = new Station($arrivalConnection->getArrivalStopUri());
+        $this->arrivalStation = new Station($arrivalConnection->getArrivalStopUri(), $language);
         $this->scheduledArrivalTime = Carbon::createFromTimestamp($arrivalConnection->getArrivalTime());
         $this->arrivalDelay = $arrivalConnection->getArrivalDelay();
         $this->scheduledArrivalTimeStamp = $this->scheduledArrivalTime->toAtomString();

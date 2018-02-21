@@ -151,15 +151,15 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
         // Calculate a new etag based on the concatenation of all other etags
         $etag = md5($etag);
-/*
-        if (isset($previousResponse) && $etag == $previousResponse->getEtag()) {
-            // If nothing changed, return the previous response. This way we get to keep the created_at date for caching purposes.
-            // This also means we can maybe send a 304, which will save a lot of data
-            $previousResponse->setExpiresAt($expiresAt); // Update expiration, otherwise any result containing this data will be instant invalid
-            Cache::put($cacheKey, $previousResponse, 120); // Update in cache to prevent looping through this every time again
-            return $previousResponse;
-        }
-*/
+        /*
+                if (isset($previousResponse) && $etag == $previousResponse->getEtag()) {
+                    // If nothing changed, return the previous response. This way we get to keep the created_at date for caching purposes.
+                    // This also means we can maybe send a 304, which will save a lot of data
+                    $previousResponse->setExpiresAt($expiresAt); // Update expiration, otherwise any result containing this data will be instant invalid
+                    Cache::put($cacheKey, $previousResponse, 120); // Update in cache to prevent looping through this every time again
+                    return $previousResponse;
+                }
+        */
         $combinedPage = new LinkedConnectionPage($departures, new Carbon('UTC'), $expiresAt, $etag, $prev, $next);
 
         Cache::put($cacheKey, $combinedPage, $expiresAt);

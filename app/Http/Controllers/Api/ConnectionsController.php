@@ -14,7 +14,10 @@ use App\Http\Requests\HyperrailRequest;
 use Carbon\Carbon;
 
 
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Input;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Request;
 use irail\stations\Stations;
 use Cache;
 
@@ -23,34 +26,32 @@ class ConnectionsController extends Controller
 
     public function getConnectionsByArrival(HyperrailRequest $request, $origin, $destination)
     {
-        // The size of the window (in seconds), for which data should be retrieved
-        $window = $request->get('window', 3600);
         $language = $request->getLanguage();
 
         $origin = new Station($origin, $language);
         $destination = new Station($destination, $language);
 
-
         $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|arrival|$language";
-        /*if (Cache::has($cacheKey)) {
 
-            $liveboard = Cache::get($cacheKey);
-            return response()->json($liveboard, 200)->withHeaders([
+        if (Cache::has($cacheKey)) {
+            $result = Cache::get($cacheKey);
+
+            return response()->json($result, 200)->withHeaders([
                 'Expires' => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
                 'Cache-Control' => 'Public, max-age=' . $liveboard->getExpiresAt()->diffInSeconds(new Carbon()),
-                'Last-Modified' => $liveboard->getCreatedAt()->format('D, d M Y H:i:s e'),
-                'ETag' => $liveboard->getEtag()
+                'Last-Modified' => $result->getCreatedAt()->format('D, d M Y H:i:s e'),
+                'ETag' => $result->getEtag()
             ]);
-        }*/
+        }
 
         /**
          * @var $repository ConnectionsRepository
          */
         $repository = new ConnectionsRepository();
-        $result = $repository->getConnectionsByArrivalTime($origin->getUri(), $destination->getUri(), $request->getDateTime());
-        /*
-           Cache::put($cacheKey, $result, $result->getExpiresAt());
-*/
+        $result = $repository->getConnectionsByArrivalTime($origin->getUri(), $destination->getUri(), $request->getDateTime(), $language);
+
+        Cache::put($cacheKey, $result, $result->getExpiresAt());
+
         return response()->json($result, 200)->withHeaders([
             'Expires' => $result->getExpiresAt()->format('D, d M Y H:i:s e'),
             'Cache-Control' => 'max-age=' . $result->getExpiresAt()->diffInSeconds(new Carbon()),

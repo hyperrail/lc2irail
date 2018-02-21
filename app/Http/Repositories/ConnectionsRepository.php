@@ -50,9 +50,16 @@ class ConnectionsRepository
      * @param $origin
      * @param $destination
      * @param $arrivaltime Carbon the latest arrival time
+     * @param $language
+     * @return ConnectionList
      */
-    public function getConnectionsByArrivalTime($origin, $destination, Carbon $arrivaltime): ConnectionList
+    public function getConnectionsByArrivalTime($origin, $destination, Carbon $arrivaltime, $language): ConnectionList
     {
+
+        // For caching purposes
+        $expiresAt = null;
+        $etag = "";
+
         // Make a copy so we won't adjust the original variable in the calling code
         $linkedConnectionsRetrievalTime = $arrivaltime->copy();
 
@@ -78,8 +85,8 @@ class ConnectionsRepository
         // Size m, where m is the number of trips
         $T = [];
 
-        // Keep searching until we have 5 results
-        while (!key_exists($origin, $S) || count($S[$origin]) < 5) {
+        // Keep searching until we have 8 results
+        while (!key_exists($origin, $S) || count($S[$origin]) < 8) {
 
             // ====================================================== //
             // START GET SORTED CONNECTIONS
@@ -89,6 +96,12 @@ class ConnectionsRepository
             // Don't adjust the original arrival time, we'll need it later
             $connectionsPage = $this->connectionsRepository->getLinkedConnectionsInWindow($linkedConnectionsRetrievalTime->subHours(1), 3600);
             $connections = $connectionsPage->getLinkedConnections();
+
+            // If expiresAt isn't set or if the expiration date for this page is earlier than the current page
+            if ($expiresAt == null || $connectionsPage->getExpiresAt() < $expiresAt) {
+                $expiresAt = $connectionsPage->getExpiresAt();
+            }
+            $etag .= $connectionsPage->getEtag();
 
             // ====================================================== //
             // END GET SORTED CONNECTIONS
@@ -100,7 +113,7 @@ class ConnectionsRepository
                 // The connection we're scanning at this moment
                 $connection = $connections[$i];
 
-                if ($connection->getArrivalTime() > $arrivaltime->getTimestamp()){
+                if ($connection->getArrivalTime() > $arrivaltime->getTimestamp()) {
                     // If this connection arrives after the arrival time the user specified, skip it.
                     continue;
                 }
@@ -288,19 +301,19 @@ class ConnectionsRepository
                 while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $it[self::KEY_ARRIVAL_TIME]) {
                     $i--;
                 }
-                $journeys[] = new Journey($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION]);
+                $journeys[] = new Journey($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION], $language);
                 $it = $it_options[$i];
             }
 
             // Store the last leg
-            $journeys[] = new Journey($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION]);
+            $journeys[] = new Journey($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION], $language);
 
             // Store the entire connection
             $results[] = new Connection($journeys);
         }
 
         // Store and return the list of connections
-        return new ConnectionList(new Station($origin), new Station($destination), $results, new Carbon(), Carbon::now()->addMinute(), md5(json_encode($results)));
+        return new ConnectionList(new Station($origin,$language), new Station($destination,$language), $results, new Carbon(), Carbon::now()->addMinute(), md5($etag));
 
     }
 }
