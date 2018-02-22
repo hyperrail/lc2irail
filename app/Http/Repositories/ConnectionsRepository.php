@@ -210,7 +210,7 @@ class ConnectionsRepository
                         // Optional: Adding one second to the arrival time will ensure that the route with the smallest number of legs is chosen.
                         // This would not affect journey extaction, but would prefer routes with less legs when arrival times are identical (as their arrival time will be one second earlier)
                         // It would prefer remaining seated over transferring when both would result in the same arrival time
-                        $T3_transferArrivalTime = $pair[self::KEY_ARRIVAL_TIME];
+                        $T3_transferArrivalTime = $pair[self::KEY_ARRIVAL_TIME] + 1;
 
                         // Using this transfer will increase the number of transfers with 1
                         $T3_transfers = $pair[self::KEY_TRANSFER_COUNT] + 1;
@@ -353,7 +353,7 @@ class ConnectionsRepository
                 // Find the next hop. This is the first reachable hop,
                 // or even stricter defined: the hop which will get us to the destination at the same arrival time.
                 // There will be a one second difference between the arrival times, as a result of the leg optimization
-                while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $it[self::KEY_ARRIVAL_TIME]) {
+                while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $it[self::KEY_ARRIVAL_TIME] - 1) {
                     $i--;
                 }
                 $journeys[] = new Journey($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION], $language);
