@@ -3,26 +3,28 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-
-
 use App\Http\Repositories\LinkedConnectionsRawRepositoryContract;
 use App\Http\Repositories\LinkedConnectionsRepositoryContract;
-use App\Http\Repositories\LinkedConnectionsWebRepository;
 use App\Http\Repositories\LiveboardsRepositoryContract;
 use App\Http\Repositories\VehicleRepositoryContract;
 use App\Http\Requests\HyperrailRequest;
-
-
 use Cache;
 use Carbon\Carbon;
+
 
 class LinkedConnectionController extends Controller
 {
 
-    public function getConnections(HyperrailRequest $request)
+    public function getConnections(HyperrailRequest $request, $timestamp = null)
     {
+        if (is_numeric($timestamp)) {
+            $requestTime = Carbon::createFromTimestamp($timestamp);
+        } else {
+            $requestTime = Carbon::parse($timestamp);
+        }
+
         $repository = app(LinkedConnectionsRawRepositoryContract::class);
-        $filtered = $repository->getRawLinkedConnections($request->getDateTime());
+        $filtered = $repository->getRawLinkedConnections($requestTime);
 
         return response()->json($filtered['data'], 200)->withHeaders([
             'Expires' => $filtered['expiresAt']->format('D, d M Y H:i:s e'),
@@ -48,17 +50,22 @@ class LinkedConnectionController extends Controller
             }
         }
         abort(404);
-
     }
 
 
-    public function getFilteredConnections(HyperrailRequest $request, String $key, String $operator, String $value)
+    public function getFilteredConnections(HyperrailRequest $request, String $key, String $operator, String $value, $timestamp = null)
     {
+        if (is_numeric($timestamp)) {
+            $requestTime = Carbon::createFromTimestamp($timestamp);
+        } else {
+            $requestTime = Carbon::parse($timestamp);
+        }
+
         /**
          * @var $repository LiveboardsRepositoryContract
          */
         $repository = app(LinkedConnectionsRepositoryContract::class);
-        $filtered = $repository->getFilteredLinkedConnections($request->getDateTime(), urldecode($key),
+        $filtered = $repository->getFilteredLinkedConnections($requestTime, urldecode($key),
             urldecode($operator), urldecode($value));
 
         return response()->json($filtered['data'], 200)->withHeaders([

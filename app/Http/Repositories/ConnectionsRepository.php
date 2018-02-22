@@ -52,7 +52,7 @@ class ConnectionsRepository
         return $this->getConnections($origin, $destination, null, $arrivaltime, 3, 8, $language);
     }
 
-    private function getConnections($origin, $destination, Carbon $departureTime = null, Carbon $arrivaltime = null, $maxTransfers = 3, $resultCount = 8, $language = 'en')
+    public function getConnections($origin, $destination, Carbon $departureTime = null, Carbon $arrivaltime = null, $maxTransfers = 3, $resultCount = 8, $language = 'en')
     {
         if ($arrivaltime == null) {
             if ($departureTime == null) {
@@ -101,7 +101,8 @@ class ConnectionsRepository
         while (
             (
                 !key_exists($origin, $S) ||
-                (count($S[$origin]) < $resultCount && $departureTime == null)
+                count($S[$origin]) < $resultCount ||
+                $departureTime != null
             ) &&
             (
                 $departureTime == null || !$departureTimeHasBeenPassed)
@@ -142,8 +143,10 @@ class ConnectionsRepository
                 }
 
                 // Detect if we're past the requested departure time
-                if ($departureTime != null && $connection->getDepartureTime() < $departureTime) {
+                if ($departureTime != null && $connection->getDepartureTime() < $departureTime->getTimestamp()) {
                     $departureTimeHasBeenPassed = true;
+                    // If this connection departs before the departure time the user specified, skip it.
+                    continue;
                 }
 
                 // The arrival stop of this connection. For more readable code.
@@ -200,7 +203,7 @@ class ConnectionsRepository
                     // TODO: replace hard-coded transfer time
                     // As long as we're arriving AFTER the pair departure, move forward in the list until we find a departure which is reachable
                     // The list is sorted by descending departure time, so the earliest departures are in the back (so we move back to front)
-                    while ($pair[self::KEY_DEPARTURE_TIME] - 240 < $connection->getDelayedArrivalTime() && $pairPosition >= 0) {
+                    while ($pair[self::KEY_DEPARTURE_TIME] - 300 < $connection->getDelayedArrivalTime() && $pairPosition >= 0) {
                         $pair = $S[$arrivalStop][$pairPosition];
                         $pairPosition--;
                     }

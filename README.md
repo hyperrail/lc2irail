@@ -15,53 +15,32 @@ Endpoints for backwards compatibility are between brackets.
 Building new applications using backwards compatible endpoints is discouraged.
 The new endpoints are more consistent, and backwards compatibility might be dropped in the future.
 
+Time can be passed on as a standard time representation, for example ISO8601 or epoch timestamps.
+
 ### Liveboard by station id
 - liveboard/{id}
-- liveboard/BE.NMBS.{id}
-- liveboard/?id={id}
 
-Get a liveboard containing departures for a certain station. The ID is the 9 digit HAFAS ID, as used in iRail/Stations.
+Get a liveboard containing departures for a certain station. The ID is the 9 digit universal station ID, as used in iRail/Stations.
 
 ### Liveboard by station name
 - liveboard/{name} 
-- (liveboard/?station={name})
 
 This enpoint provides similar functionality as the endpoint described above, however, 
 it allows searching stations by name.
 
 ### Vehicle
-- vehicle/{name} 
-- (Vehicle/?id={name})
-- vehicle/BE.NMBS.{name} 
-- (vehicle/?id=BE.NMBS.{name})
-
-Where name is the name of the train, e.g. IC837.
+- vehicle/{id}
+(- vehicle/BE.NMBS.{id})
+Where id is the name of the train, e.g. IC837.
 
 ### Route
-- connections/{from}/{to}
-- (connections/?from={from}&to={to})
+- connections/{from}/{to}/departing/{timestamp}
+- connections/{from}/{to}/arriving/{timestamp}
+- connections/{from}/{to}/{departureTimestamp}/{arrivalTimestamp}
 Where from and to can be either station ids or names.
 
-Not implemented yet
-
-
-## Parameters
-
-Parameters for backwards compatibility are between brackets.
-Building new applications using backwards compatible parameters is discouraged.
-The new parameters are more consistent, and backwards compatibility might be dropped in the future.
-
-### Passing time
-Time can be passed on in 3 formats:
-
-- ?timestamp={unix timestamp}
-- (?date={ddmmYY}&time={hhmm}) 
-- (?time={hhmm}) *note: the current day will be used as date*
-
-## Type of time
-- ?datetimetype={arrival|departure|arr|dep}
-- (?timeSel={arrival|departure)
-- (?arrdep={arr|dep)
+This allows you to either get routes departing after or arriving before a certain time, 
+or to get all routes departing after a certain time and arriving before an upper time bound.
 
 ## Language
 - ?lang={ISO2 language}

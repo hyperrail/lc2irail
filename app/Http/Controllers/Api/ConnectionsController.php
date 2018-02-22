@@ -23,15 +23,26 @@ use Cache;
 
 class ConnectionsController extends Controller
 {
-
-    public function getConnectionsByArrival(HyperrailRequest $request, $origin, $destination)
+    public function getConnections(HyperrailRequest $request, $origin, $destination, $departureTimestamp, $arrivalTimestamp)
     {
+        if (is_numeric($departureTimestamp)) {
+            $departureTime = Carbon::createFromTimestamp($departureTimestamp);
+        } else {
+            $departureTime = Carbon::parse($departureTimestamp);
+        }
+
+        if (is_numeric($arrivalTimestamp)) {
+            $arrivalTime = Carbon::createFromTimestamp($arrivalTimestamp);
+        } else {
+            $arrivalTime = Carbon::parse($arrivalTimestamp);
+        }
+
         $language = $request->getLanguage();
 
         $origin = new Station($origin, $language);
         $destination = new Station($destination, $language);
 
-        $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|arrival|" . $request->getDateTime()->getTimestamp() . $language;
+        $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|" . $departureTime->getTimestamp() . "|" . $arrivalTime->getTimestamp() . "|" . $language;
 
         if (false && Cache::has($cacheKey)) {
             $result = Cache::get($cacheKey);
@@ -48,7 +59,93 @@ class ConnectionsController extends Controller
          * @var $repository ConnectionsRepository
          */
         $repository = new ConnectionsRepository();
-        $result = $repository->getConnectionsByArrivalTime($origin->getUri(), $destination->getUri(), $request->getDateTime(), $language);
+        $result = $repository->getConnections($origin->getUri(), $destination->getUri(), $departureTime, $arrivalTime, 3, 8, $language);
+
+        //Cache::put($cacheKey, $result, $result->getExpiresAt());
+
+        return response()->json($result, 200)->withHeaders([
+            'Expires' => $result->getExpiresAt()->format('D, d M Y H:i:s e'),
+            'Cache-Control' => 'max-age=' . $result->getExpiresAt()->diffInSeconds(new Carbon()),
+            'Last-Modified' => $result->getCreatedAt()->format('D, d M Y H:i:s e'),
+            'ETag' => $result->getEtag()
+        ]);
+
+    }
+
+    public function getConnectionsByDeparture(HyperrailRequest $request, $origin, $destination, $timestamp = null)
+    {
+        if (is_numeric($timestamp)) {
+            $requestTime = Carbon::createFromTimestamp($timestamp);
+        } else {
+            $requestTime = Carbon::parse($timestamp);
+        }
+
+        $language = $request->getLanguage();
+
+        $origin = new Station($origin, $language);
+        $destination = new Station($destination, $language);
+
+        $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|departure|" . $requestTime->getTimestamp() . "|" . $language;
+
+        if (false && Cache::has($cacheKey)) {
+            $result = Cache::get($cacheKey);
+
+            return response()->json($result, 200)->withHeaders([
+                'Expires' => $result->getExpiresAt()->format('D, d M Y H:i:s e'),
+                'Cache-Control' => 'Public, max-age=' . $result->getExpiresAt()->diffInSeconds(new Carbon()),
+                'Last-Modified' => $result->getCreatedAt()->format('D, d M Y H:i:s e'),
+                'ETag' => $result->getEtag()
+            ]);
+        }
+
+        /**
+         * @var $repository ConnectionsRepository
+         */
+        $repository = new ConnectionsRepository();
+        $result = $repository->getConnectionsByDepartureTime($origin->getUri(), $destination->getUri(), $requestTime, $language);
+
+        //Cache::put($cacheKey, $result, $result->getExpiresAt());
+
+        return response()->json($result, 200)->withHeaders([
+            'Expires' => $result->getExpiresAt()->format('D, d M Y H:i:s e'),
+            'Cache-Control' => 'max-age=' . $result->getExpiresAt()->diffInSeconds(new Carbon()),
+            'Last-Modified' => $result->getCreatedAt()->format('D, d M Y H:i:s e'),
+            'ETag' => $result->getEtag()
+        ]);
+
+    }
+
+    public function getConnectionsByArrival(HyperrailRequest $request, $origin, $destination, $timestamp = null)
+    {
+        if (is_numeric($timestamp)) {
+            $requestTime = Carbon::createFromTimestamp($timestamp);
+        } else {
+            $requestTime = Carbon::parse($timestamp);
+        }
+
+        $language = $request->getLanguage();
+
+        $origin = new Station($origin, $language);
+        $destination = new Station($destination, $language);
+
+        $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|arrival|" . $requestTime->getTimestamp() . "|" . $language;
+
+        if (false && Cache::has($cacheKey)) {
+            $result = Cache::get($cacheKey);
+
+            return response()->json($result, 200)->withHeaders([
+                'Expires' => $result->getExpiresAt()->format('D, d M Y H:i:s e'),
+                'Cache-Control' => 'Public, max-age=' . $result->getExpiresAt()->diffInSeconds(new Carbon()),
+                'Last-Modified' => $result->getCreatedAt()->format('D, d M Y H:i:s e'),
+                'ETag' => $result->getEtag()
+            ]);
+        }
+
+        /**
+         * @var $repository ConnectionsRepository
+         */
+        $repository = new ConnectionsRepository();
+        $result = $repository->getConnectionsByArrivalTime($origin->getUri(), $destination->getUri(), $requestTime, $language);
 
         //Cache::put($cacheKey, $result, $result->getExpiresAt());
 

@@ -32,6 +32,9 @@ class Station implements \JsonSerializable
         string $lang = ''
     ) {
         $iRailStation = Stations::getStationFromID($id);
+        if ($iRailStation == null){
+            abort(404);
+        }
         $this->uri = $iRailStation->{'@id'};
         $this->id = 'BE.NMBS.' . basename($this->uri);
         $this->defaultName = $iRailStation->name;
