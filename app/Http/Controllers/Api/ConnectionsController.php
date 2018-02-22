@@ -31,14 +31,14 @@ class ConnectionsController extends Controller
         $origin = new Station($origin, $language);
         $destination = new Station($destination, $language);
 
-        $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|arrival|$language";
+        $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|arrival|" . $request->getDateTime()->getTimestamp() . $language;
 
-        if (Cache::has($cacheKey)) {
+        if (false && Cache::has($cacheKey)) {
             $result = Cache::get($cacheKey);
 
             return response()->json($result, 200)->withHeaders([
-                'Expires' => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
-                'Cache-Control' => 'Public, max-age=' . $liveboard->getExpiresAt()->diffInSeconds(new Carbon()),
+                'Expires' => $result->getExpiresAt()->format('D, d M Y H:i:s e'),
+                'Cache-Control' => 'Public, max-age=' . $result->getExpiresAt()->diffInSeconds(new Carbon()),
                 'Last-Modified' => $result->getCreatedAt()->format('D, d M Y H:i:s e'),
                 'ETag' => $result->getEtag()
             ]);
@@ -50,7 +50,7 @@ class ConnectionsController extends Controller
         $repository = new ConnectionsRepository();
         $result = $repository->getConnectionsByArrivalTime($origin->getUri(), $destination->getUri(), $request->getDateTime(), $language);
 
-        Cache::put($cacheKey, $result, $result->getExpiresAt());
+        //Cache::put($cacheKey, $result, $result->getExpiresAt());
 
         return response()->json($result, 200)->withHeaders([
             'Expires' => $result->getExpiresAt()->format('D, d M Y H:i:s e'),

@@ -41,9 +41,10 @@ class ConnectionsRepository
         $this->connectionsRepository = app(LinkedConnectionsRepository::class);
     }
 
-    public function getConnectionsByDepartureTime($origin, $destionation, $departuretime)
+    public function getConnectionsByDepartureTime($origin, $destination, $departuretime, $language): ConnectionList
     {
-
+        // By not passing an arrival time, getConnections will determine set a good value to start scanning
+        return $this->getConnections($origin, $destination, $departuretime, null, 4, $language);
     }
 
     /**
@@ -55,13 +56,27 @@ class ConnectionsRepository
      */
     public function getConnectionsByArrivalTime($origin, $destination, Carbon $arrivaltime, $language): ConnectionList
     {
+        return $this->getConnections($origin, $destination, null, $arrivaltime, 4, $language);
+    }
+
+    private function getConnections($origin, $destination, Carbon $departureTime = null, Carbon $arrivaltime = null, $resultCount = 8, $language = 'en')
+    {
+        if ($arrivaltime == null) {
+            if ($departureTime == null) {
+                $departureTime = new Carbon();
+            }
+            $arrivaltime = $departureTime->copy()->addHours(6);
+        }
 
         // For caching purposes
         $expiresAt = null;
         $etag = "";
 
         // Make a copy so we won't adjust the original variable in the calling code
-        $linkedConnectionsRetrievalTime = $arrivaltime->copy();
+        $pointer = $arrivaltime->copy()->subMinutes(10);
+
+        // We'll use this variable to detect whether or not we should stop because we've passed the request departure time
+        $departureTimeHasBeenPassed = false;
 
         // I want to arrive before $arrivaltime
         // See `Connection Scan Algorithm, March 20147, §4.1-4.2
@@ -85,8 +100,19 @@ class ConnectionsRepository
         // Size m, where m is the number of trips
         $T = [];
 
-        // Keep searching until we have 8 results
-        while (!key_exists($origin, $S) || count($S[$origin]) < 8) {
+        // Keep searching
+        // - while no results have been found
+        // - until we have the number of results we'd like (in case no departure time is given)
+        // - but stop when we're passing the departe time limit
+        // - when we're searching with a departuretime, we need to continue until we're at the front. This might result in more results, which we'll all pass to the client
+        while (
+            (
+                !key_exists($origin, $S) ||
+                (count($S[$origin]) < $resultCount && $departureTime == null)
+            ) &&
+            (
+                $departureTime == null || ! $departureTimeHasBeenPassed)
+        ) {
 
             // ====================================================== //
             // START GET SORTED CONNECTIONS
@@ -94,7 +120,11 @@ class ConnectionsRepository
 
             // Initially we'll start with connections for the hour before the arrival time.
             // Don't adjust the original arrival time, we'll need it later
-            $connectionsPage = $this->connectionsRepository->getLinkedConnectionsInWindow($linkedConnectionsRetrievalTime->subHours(1), 3600);
+            $connectionsPage = $this->connectionsRepository->getLinkedConnections($pointer);
+
+            // We will loop over the pages in descending order
+            $pointer = $connectionsPage->getPreviousPointer();
+
             $connections = $connectionsPage->getLinkedConnections();
 
             // If expiresAt isn't set or if the expiration date for this page is earlier than the current page
@@ -113,9 +143,15 @@ class ConnectionsRepository
                 // The connection we're scanning at this moment
                 $connection = $connections[$i];
 
+                // Detect if we're past the requested arrival time
                 if ($connection->getArrivalTime() > $arrivaltime->getTimestamp()) {
                     // If this connection arrives after the arrival time the user specified, skip it.
                     continue;
+                }
+
+                // Detect if we're past the requested departure time
+                if ($departureTime != null && $connection->getDepartureTime() < $departureTime){
+                    $departureTimeHasBeenPassed = true;
                 }
 
                 // The arrival stop of this connection. For more readable code.
@@ -174,6 +210,9 @@ class ConnectionsRepository
 
                     if ($pairPosition >= 0) {
                         // If a result was found in the list, this is the earliest arrival time when transferring here
+                        // Optional: Adding one second to the arrival time will ensure that the route with the smallest number of legs is chosen.
+                        // This would not affect journey extaction, but would prefer routes with less legs when arrival times are identical (as their arrival time will be one second earlier)
+                        // It would prefer remaining seated over transferring when both would result in the same arrival time
                         $T3_transfer = $pair[self::KEY_ARRIVAL_TIME];
                     } else {
                         // When there isn't a reachable connection, transferring isn't an option
@@ -280,12 +319,13 @@ class ConnectionsRepository
         }
 
         $results = [];
+        $numberOfResultsFound = count($S[$origin]);
 
         if (!key_exists($origin, $S)) {
-            abort(404, "No routes found");
+            return new ConnectionList(new Station($origin, $language), new Station($destination, $language), [], new Carbon(), Carbon::now()->addMinute(), md5($etag));
         }
 
-        foreach ($S[$origin] as $quad) {
+        foreach ($S[$origin] as $k => $quad) {
             // $it will iterate over all the legs (journeys) in a connection
             $it = $quad;
 
@@ -298,6 +338,7 @@ class ConnectionsRepository
                 $i = count($it_options) - 1;
                 // Find the next hop. This is the first reachable hop,
                 // or even stricter defined: the hop which will get us to the destination at the same arrival time.
+                // There will be a one second difference between the arrival times, as a result of the leg optimization
                 while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $it[self::KEY_ARRIVAL_TIME]) {
                     $i--;
                 }
@@ -308,12 +349,12 @@ class ConnectionsRepository
             // Store the last leg
             $journeys[] = new Journey($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION], $language);
 
-            // Store the entire connection
-            $results[] = new Connection($journeys);
+            // Store the entire connection, in the meanwhile inversing the array to have earliest connections first
+            $results[$numberOfResultsFound - $k - 1] = new Connection($journeys);
         }
 
         // Store and return the list of connections
-        return new ConnectionList(new Station($origin,$language), new Station($destination,$language), $results, new Carbon(), Carbon::now()->addMinute(), md5($etag));
+        return new ConnectionList(new Station($origin, $language), new Station($destination, $language), $results, new Carbon(), Carbon::now()->addMinute(), md5($etag));
 
     }
 }
