@@ -16,46 +16,85 @@ $router->get('/', function () use ($router) {
 });
 
 $router->group(['prefix' => '/liveboard'], function () use ($router) {
-    $router->get('/{id:\d{9}}/{timestamp}', [
-        'as' => 'liveboard.byId',
-        'uses' => 'Api\LiveboardController@getLiveboard']);
-    //$app->get('/{id:\d{9}}','Api\LiveboardController@getLiveboard');
-    $router->get('/{station:[^0-9]+}/{timestamp}', [
-        'as' => 'liveboard.byName',
-        'uses' => 'Api\LiveboardController@getLiveboardByName']);
+
+    $router->get('/{id:\d{9}}',
+        [
+            'as'   => 'liveboard.byIdNow',
+            'uses' => 'Api\LiveboardController@getLiveboardNow'
+        ]
+    );
+
+    $router->get('/{id:\d{9}}/{timestamp}',
+        [
+            'as'   => 'liveboard.byId',
+            'uses' => 'Api\LiveboardController@getLiveboard'
+        ]
+    );
+    $router->get('/{station:[^0-9]+}/{timestamp}',
+        [
+            'as'   => 'liveboard.byName',
+            'uses' => 'Api\LiveboardController@getLiveboardByName'
+        ]
+    );
+    $router->get('/{station:[^0-9]+}',
+        [
+            'as'   => 'liveboard.byNameNow',
+            'uses' => 'Api\LiveboardController@getLiveboardByNameNow'
+        ]
+    );
 });
 
 
 $router->group(['prefix' => '/vehicle'], function () use ($router) {
     $router->get('/{id}/{date:\d{8}}',
         [
-            'as' => 'vehicle.byId',
-            'uses' => 'Api\VehicleController@getVehicle']);
+            'as'   => 'vehicle.byId',
+            'uses' => 'Api\VehicleController@getVehicle'
+        ]
+    );
 });
 
 $router->group(['prefix' => '/connections'], function () use ($router) {
     $router->get('/{origin:\d{9}}/{destination:\d{9}}/departing/{timestamp}',
         [
-            'as' => 'connections.byDeparture',
-            'uses' => 'Api\ConnectionsController@getConnectionsByDeparture']
+            'as'   => 'connections.byDeparture',
+            'uses' => 'Api\ConnectionsController@getConnectionsByDeparture'
+        ]
+    );
+    $router->get('/{origin:\d{9}}/{destination:\d{9}}/departing',
+        [
+            'as'   => 'connections.byDepartureNow',
+            'uses' => 'Api\ConnectionsController@getConnectionsByDepartureNow'
+        ]
     );
     $router->get('/{origin:\d{9}}/{destination:\d{9}}/arriving/{timestamp}',
         [
-            'as' => 'connections.byArrival',
-            'uses' => 'Api\ConnectionsController@getConnectionsByArrival']
+            'as'   => 'connections.byArrival',
+            'uses' => 'Api\ConnectionsController@getConnectionsByArrival'
+        ]
+    );
+    $router->get('/{origin:\d{9}}/{destination:\d{9}}/arriving',
+        [
+            'as'   => 'connections.byArrivalNow',
+            'uses' => 'Api\ConnectionsController@getConnectionsByArrivalNow'
+        ]
     );
     $router->get('/{origin:\d{9}}/{destination:\d{9}}/{departureTimestamp}/{arrivalTimestamp}',
         [
-            'as' => 'connections.byBounds',
-            'uses' => 'Api\ConnectionsController@getConnections']
+            'as'   => 'connections.byBounds',
+            'uses' => 'Api\ConnectionsController@getConnections'
+        ]
     );
 });
 
 // DepartureConnection
 $router->get('/connections/{stop:\d{7}}/{date:\d{8}}/{vehicle}',
     [
-        'as' => 'departureConnection',
-        'uses' => 'Api\LinkedConnectionController@getDepartureConnection']);
+        'as'   => 'departureConnection',
+        'uses' => 'Api\LinkedConnectionController@getDepartureConnection'
+    ]
+);
+
 
 $router->group(['prefix' => '/disturbances'], function () use ($router) {
     $router->get('/', 'Api\DisturbanceController@getDisturbances');

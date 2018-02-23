@@ -57,7 +57,6 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
             return Cache::get($pageCacheKey);
         }
 
-
         $departureTime->setTimezone('UTC');
         $scheduledBase = $this->BASE_DIRECTORY . '/linked_pages/' . $this->AGENCY;
         $realtimeBase = $this->BASE_DIRECTORY . '/real_time/' . $this->AGENCY;
@@ -132,7 +131,6 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
                 // Overwrite existing, add new
                 $departures[$id] = $data;
-
             }
         }
 

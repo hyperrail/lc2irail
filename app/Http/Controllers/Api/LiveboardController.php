@@ -20,6 +20,11 @@ use Cache;
 class LiveboardController extends Controller
 {
 
+    public function getLiveboardNow(HyperrailRequest $request, string $id)
+    {
+        return redirect()->route('liveboard.byId', ['id' => $id, 'timestamp' => Carbon::now()->toAtomString()]);
+    }
+
     public function getLiveboard(HyperrailRequest $request, string $id, $timestamp)
     {
         // The size of the window (in seconds), for which data should be retrieved
@@ -40,10 +45,10 @@ class LiveboardController extends Controller
              */
             $liveboard = Cache::get($cacheKey);
             return response()->json($liveboard, 200)->withHeaders([
-                'Expires' => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
+                'Expires'       => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
                 'Cache-Control' => 'Public, max-age=' . $liveboard->getExpiresAt()->diffInSeconds(new Carbon()),
                 'Last-Modified' => $liveboard->getCreatedAt()->format('D, d M Y H:i:s e'),
-                'ETag' => $liveboard->getEtag()
+                'ETag'          => $liveboard->getEtag()
             ]);
         }
 
@@ -55,10 +60,10 @@ class LiveboardController extends Controller
         Cache::put($cacheKey, $liveboard, $liveboard->getExpiresAt());
 
         return response()->json($liveboard, 200)->withHeaders([
-            'Expires' => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
+            'Expires'       => $liveboard->getExpiresAt()->format('D, d M Y H:i:s e'),
             'Cache-Control' => 'max-age=' . $liveboard->getExpiresAt()->diffInSeconds(new Carbon()),
             'Last-Modified' => $liveboard->getCreatedAt()->format('D, d M Y H:i:s e'),
-            'ETag' => $liveboard->getEtag()
+            'ETag'          => $liveboard->getEtag()
         ]);
     }
 
@@ -70,5 +75,15 @@ class LiveboardController extends Controller
         }
         $id = basename($matches[0]->{'@id'});
         return redirect()->route('liveboard.byId', ['id' => $id, 'timestamp' => $timestamp]);
+    }
+
+    public function getLiveboardByNameNow(HyperrailRequest $request, string $station)
+    {
+        $matches = Stations::getStations(urldecode($station))->{'@graph'};
+        if (count($matches) == 0) {
+            abort(404);
+        }
+        $id = basename($matches[0]->{'@id'});
+        return redirect()->route('liveboard.byId', ['id' => $id, 'timestamp' => Carbon::now()->toAtomString()]);
     }
 }

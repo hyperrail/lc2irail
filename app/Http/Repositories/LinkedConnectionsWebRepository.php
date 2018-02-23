@@ -71,6 +71,8 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
             }
         }
 
+        // TODO: when there is a delay, subtract the delay from the departure or arrival time
+
         // If not valid, retrieve (but try Etag as well)
         if (!isset($raw)) {
 

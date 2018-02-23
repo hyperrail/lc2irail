@@ -72,7 +72,18 @@ class ConnectionsController extends Controller
 
     }
 
-    public function getConnectionsByDeparture(HyperrailRequest $request, $origin, $destination, $timestamp = null)
+    public function getConnectionsByDepartureNow(HyperrailRequest $request, $origin, $destination)
+    {
+        return redirect()->route("connections.byDeparture", ['origin' => $origin, 'destination' => $destination, 'timestamp' => Carbon::now()->toAtomString()]);
+    }
+
+    public function getConnectionsByArrivalNow(HyperrailRequest $request, $origin, $destination)
+    {
+        return redirect()->route("connections.byArrival", ['origin' => $origin, 'destination' => $destination, 'timestamp' => Carbon::now()->toAtomString()]);
+    }
+
+
+    public function getConnectionsByDeparture(HyperrailRequest $request, $origin, $destination, $timestamp)
     {
         if (is_numeric($timestamp)) {
             $requestTime = Carbon::createFromTimestamp($timestamp);
@@ -115,7 +126,7 @@ class ConnectionsController extends Controller
 
     }
 
-    public function getConnectionsByArrival(HyperrailRequest $request, $origin, $destination, $timestamp = null)
+    public function getConnectionsByArrival(HyperrailRequest $request, $origin, $destination, $timestamp)
     {
         if (is_numeric($timestamp)) {
             $requestTime = Carbon::createFromTimestamp($timestamp);

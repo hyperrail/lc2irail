@@ -66,12 +66,12 @@ class LinkedConnection
 
     public function getDepartureTime(): int
     {
-        return $this->departureTime - $this->getDepartureDelay();
+        return $this->departureTime ;
     }
 
     public function getDelayedDepartureTime(): int
     {
-        return $this->departureTime;
+        return $this->departureTime + $this->getDepartureDelay();
     }
 
     public function getDepartureDelay(): int
@@ -86,12 +86,12 @@ class LinkedConnection
 
     public function getArrivalTime(): int
     {
-        return $this->arrivalTime - $this->arrivalDelay;
+        return $this->arrivalTime;
     }
 
     public function getDelayedArrivalTime(): int
     {
-        return $this->arrivalTime;
+        return $this->arrivalTime + $this->arrivalDelay;
     }
 
     public function getArrivalDelay(): int

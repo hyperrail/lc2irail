@@ -25,7 +25,7 @@ class VehicleRepository implements  VehicleRepositoryContract
 
         $trip = "http://irail.be/vehicle/" . $id . "/" . $date;
 
-        $datestamp = Carbon::createFromFormat("Ymd his", $date . " 030000");
+        $pointer = Carbon::createFromFormat("Ymd his", $date . " 030000");
 
         $repository = app(LinkedConnectionsRepositoryContract::class);
 
@@ -48,13 +48,12 @@ class VehicleRepository implements  VehicleRepositoryContract
 
         while ((count($stops) == 0 || $hoursWithoutStop < 2) && $hoursWithoutStop < 24) {
 
-            Log::info("Getting connections for date " . $datestamp->toDateTimeString());
             /**
              * @var $linkedConnectionsData \App\Http\Models\LinkedConnectionPage
              */
-            $linkedConnectionsData = $repository->getLinkedConnectionsInWindow($datestamp, 3600);
-            // Increase for next query. 3600 pages are widespread used through the application, meaning more chance for it to be cached
-            $datestamp->addSeconds(3600);
+            $linkedConnectionsData = $repository->getLinkedConnectionsInWindow($pointer, 3600);
+            // Get next pointer
+            $pointer = $linkedConnectionsData->getNextPointer();
 
             if ($newestCreatedAt == null || $linkedConnectionsData->getCreatedAt()->greaterThan($newestCreatedAt)) {
                 $newestCreatedAt = $linkedConnectionsData->getCreatedAt();

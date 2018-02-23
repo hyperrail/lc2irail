@@ -37,7 +37,7 @@ class ConnectionsRepository
     public function getConnectionsByDepartureTime($origin, $destination, $departuretime, $language): ConnectionList
     {
         // By not passing an arrival time, getConnections will determine set a good value to start scanning
-        return $this->getConnections($origin, $destination, $departuretime, null, 3, 8, $language);
+        return $this->getConnections($origin, $destination, $departuretime, null, 10, 8, $language);
     }
 
     /**
@@ -49,10 +49,10 @@ class ConnectionsRepository
      */
     public function getConnectionsByArrivalTime($origin, $destination, Carbon $arrivaltime, $language): ConnectionList
     {
-        return $this->getConnections($origin, $destination, null, $arrivaltime, 3, 8, $language);
+        return $this->getConnections($origin, $destination, null, $arrivaltime, 10, 8, $language);
     }
 
-    public function getConnections($origin, $destination, Carbon $departureTime = null, Carbon $arrivaltime = null, $maxTransfers = 3, $resultCount = 8, $language = 'en')
+    public function getConnections($origin, $destination, Carbon $departureTime = null, Carbon $arrivaltime = null, $maxTransfers = 10, $resultCount = 8, $language = 'en')
     {
         if ($arrivaltime == null) {
             if ($departureTime == null) {
@@ -336,11 +336,11 @@ class ConnectionsRepository
         }
 
         $results = [];
-        $numberOfResultsFound = count($S[$origin]);
-
         if (!key_exists($origin, $S)) {
             return new ConnectionList(new Station($origin, $language), new Station($destination, $language), [], new Carbon(), Carbon::now()->addMinute(), md5($etag));
         }
+
+        $numberOfResultsFound = count($S[$origin]);
 
         foreach ($S[$origin] as $k => $quad) {
             // $it will iterate over all the legs (journeys) in a connection

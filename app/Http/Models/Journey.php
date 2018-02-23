@@ -36,12 +36,10 @@ class Journey implements \JsonSerializable
      * @var \Carbon\Carbon
      */
     private $scheduledDepartureTime;
-    private $scheduledDepartureTimeStamp;
     /**
      * @var \Carbon\Carbon
      */
     private $scheduledArrivalTime;
-    private $scheduledArrivalTimeStamp;
     /**
      * @var int
      */
@@ -65,13 +63,11 @@ class Journey implements \JsonSerializable
         $this->departureStation = new Station($departureConnection->getDepartureStopUri(), $language);
         $this->scheduledDepartureTime = Carbon::createFromTimestamp($departureConnection->getDepartureTime());
         $this->departureDelay = $departureConnection->getDepartureDelay();
-        $this->scheduledDepartureTimeStamp = $this->scheduledDepartureTime->toAtomString();
 
         $this->arrivalConnection = $arrivalConnection->getId();
         $this->arrivalStation = new Station($arrivalConnection->getArrivalStopUri(), $language);
         $this->scheduledArrivalTime = Carbon::createFromTimestamp($arrivalConnection->getArrivalTime());
         $this->arrivalDelay = $arrivalConnection->getArrivalDelay();
-        $this->scheduledArrivalTimeStamp = $this->scheduledArrivalTime->toAtomString();
 
         $this->trip = $departureConnection->getTrip();
         $this->route = $departureConnection->getRoute();
@@ -168,8 +164,9 @@ class Journey implements \JsonSerializable
     public function jsonSerialize()
     {
         $vars = get_object_vars($this);
-        unset($vars['scheduledArrivalTime']);
-        unset($vars['scheduledDepartureTime']);
+        $vars['scheduledDepartureTime'] = $this->scheduledDepartureTime->toAtomString();
+        $vars['scheduledArrivalTime'] = $this->scheduledArrivalTime->toAtomString();
+        ksort($vars);
         return $vars;
     }
 }

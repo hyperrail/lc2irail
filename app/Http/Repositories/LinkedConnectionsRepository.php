@@ -147,6 +147,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $prev = $windowPage->getPreviousPointer();
             }
             $next = $windowPage->getNextPointer();
+            Log:info("Next pointer " . $next);
         }
 
         // Calculate a new etag based on the concatenation of all other etags
