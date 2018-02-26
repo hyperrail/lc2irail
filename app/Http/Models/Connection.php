@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Models;
+use Carbon\Carbon;
 
 /**
  * Class Connection
@@ -11,19 +12,23 @@ class Connection implements \JsonSerializable
     /**
      * @var array A list of trains journeys
      */
-    private $journeys;
+    private $legs;
+    private $departureTime;
+    private $arrivalTime;
 
     public function __construct(array $journeys)
     {
-        $this->journeys = $journeys;
+        $this->legs = $journeys;
+        $this->departureTime = $journeys[0]->getDepartureTime();
+        $this->arrivalTime = $journeys[count($journeys) - 1]->getArrivalTime();
     }
 
     /**
      * @return array
      */
-    public function getJourneys(): array
+    public function getLegs(): array
     {
-        return $this->journeys;
+        return $this->legs;
     }
 
     /**
@@ -35,6 +40,25 @@ class Connection implements \JsonSerializable
      */
     public function jsonSerialize()
     {
-        return get_object_vars($this);
+        $vars = get_object_vars($this);
+        $vars['departureTime'] = $this->departureTime->toAtomString();
+        $vars['arrivalTime'] = $this->arrivalTime->toAtomString();
+        return $vars;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getArrivalTime(): Carbon
+    {
+        return $this->arrivalTime;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getDepartureTime() : Carbon
+    {
+        return $this->departureTime;
     }
 }

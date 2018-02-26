@@ -4,9 +4,10 @@ namespace App\Http\Repositories;
 
 use App\Http\Models\Connection;
 use App\Http\Models\ConnectionList;
-use App\Http\Models\Journey;
+use App\Http\Models\JourneyLeg;
 use App\Http\Models\Station;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Class ConnectionsRepository
@@ -58,7 +59,7 @@ class ConnectionsRepository
             if ($departureTime == null) {
                 $departureTime = new Carbon();
             }
-            $arrivaltime = $departureTime->copy()->addHours(6);
+            $arrivaltime = $departureTime->copy()->addHours(8);
         }
 
         // For caching purposes
@@ -66,7 +67,7 @@ class ConnectionsRepository
         $etag = "";
 
         // Make a copy so we won't adjust the original variable in the calling code
-        $pointer = $arrivaltime->copy()->subMinutes(10);
+        $pointer = $arrivaltime->copy();
 
         // We'll use this variable to detect whether or not we should stop because we've passed the request departure time
         $departureTimeHasBeenPassed = false;
@@ -165,6 +166,7 @@ class ConnectionsRepository
                     // Our implementation does not add a footpath at the end
                     // Therefore, we arrive at our destination at the time this connection arrives
                     $T1_walkingArrivalTime = $connection->getArrivalTime();
+
                     // We're walking, so this connections has no transfers between it and the destination
                     $T1_transfers = 0;
                 } else {
@@ -174,6 +176,9 @@ class ConnectionsRepository
                     // This is to be supported later on, but requires a list of footpaths.
                     // TODO: support walking to a nearby stop, e.g. haren/haren-zuid
                     $T1_walkingArrivalTime = self::TIME_INFINITE;
+                    // Default value to prevent errors due to undefined variables.
+                    // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
+                    $T1_transfers = false;
                 }
 
                 // Determine T2, the first possible time of arrival when remaining seated
@@ -182,14 +187,19 @@ class ConnectionsRepository
                     $T2_stayOnTripArrivalTime = $T[$connection->getTrip()][self::KEY_ARRIVAL_TIME];
                     // Remaining seated will have the same number of transfers between this connection and the destination, as from the best exit stop and the destination
                     $T2_transfers = $T[$connection->getTrip()][self::KEY_TRANSFER_COUNT];
+
                 } else {
                     // When there isn't a fastest arrival time for this stop yet, it means we haven't found a connection
                     // - To arrive in the destination using this vehicle, or
                     // - To transfer to another vehicle in another station
                     $T2_stayOnTripArrivalTime = self::TIME_INFINITE;
+                    // Default value to prevent errors due to undefined variables.
+                    // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
+                    $T2_transfers = false;
                 }
 
                 // Determine T3, the time of arrival when taking the best possible transfer in this station
+
                 if (key_exists($arrivalStop, $S)) {
                     // If there are connections leaving from the arrival station, determine the one which departs after we arrive,
                     // but arrives as soon as possible
@@ -198,14 +208,14 @@ class ConnectionsRepository
                     $pairPosition = count($S[$arrivalStop]) - 1;
 
                     $pair = $S[$arrivalStop][$pairPosition];
-                    $pairPosition--;
 
                     // TODO: replace hard-coded transfer time
                     // As long as we're arriving AFTER the pair departure, move forward in the list until we find a departure which is reachable
                     // The list is sorted by descending departure time, so the earliest departures are in the back (so we move back to front)
-                    while ($pair[self::KEY_DEPARTURE_TIME] - 300 < $connection->getDelayedArrivalTime() && $pairPosition >= 0) {
-                        $pair = $S[$arrivalStop][$pairPosition];
+                    while (($pair[self::KEY_DEPARTURE_TIME] - 300 < $connection->getArrivalTime() || $pair[self::KEY_TRANSFER_COUNT] >= $maxTransfers) && $pairPosition > 0) {
+
                         $pairPosition--;
+                        $pair = $S[$arrivalStop][$pairPosition];
                     }
 
                     if ($pairPosition >= 0) {
@@ -213,29 +223,62 @@ class ConnectionsRepository
                         // Optional: Adding one second to the arrival time will ensure that the route with the smallest number of legs is chosen.
                         // This would not affect journey extaction, but would prefer routes with less legs when arrival times are identical (as their arrival time will be one second earlier)
                         // It would prefer remaining seated over transferring when both would result in the same arrival time
-                        $T3_transferArrivalTime = $pair[self::KEY_ARRIVAL_TIME] + 1;
+                        $T3_transferArrivalTime = $pair[self::KEY_ARRIVAL_TIME];
 
                         // Using this transfer will increase the number of transfers with 1
                         $T3_transfers = $pair[self::KEY_TRANSFER_COUNT] + 1;
 
-                        // If we're going over the limit, set the arrival time to infinitely late
-                        if ($T3_transfers > $maxTransfers) {
-                            $T3_transferArrivalTime = self::TIME_INFINITE;
-                        }
-
                     } else {
+
                         // When there isn't a reachable connection, transferring isn't an option
                         $T3_transferArrivalTime = self::TIME_INFINITE;
+                        // Default value to prevent errors due to undefined variables.
+                        // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
+                        $T3_transfers = false;
                     }
 
                 } else {
                     // When there isn't a reachable connection, transferring isn't an option
                     $T3_transferArrivalTime = self::TIME_INFINITE;
+                    // Default value to prevent errors due to undefined variables.
+                    // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
+                    $T3_transfers = false;
                 }
 
-                // Tc in the pahper
+                // Tmin = Tc in the paper
                 // This is the earliest arrival time over the 3 possibilities
-                $Tmin = min($T1_walkingArrivalTime, $T2_stayOnTripArrivalTime, $T3_transferArrivalTime);
+
+                // Where do we need to get off the train?
+                // The following if-else structure does not follow the JourneyLeg Extraction algorithm as described in the CSA (march 2017) paper.
+                // Not only do we want to reconstruct the journey (the vehicles used), but we want departure and arrival times for every single leg.
+                // In order to also have the arrival times, we will always save the arrival connection for the next hop, instead of the arrival connection for the entire journey.
+
+                // If T3 < T2, prefer a transfer. If T2 <= T3, prefer remaining seated.
+                // Here we force the least amount of transfers for the same arrival time
+                // TODO: here we could also apply "3 minutes longer travel for one less arrival"
+                if ($T3_transferArrivalTime < $T2_stayOnTripArrivalTime) {
+                    $Tmin = $T3_transferArrivalTime;
+
+                    // We're transferring here, so get off the train in this station
+                    $exitTrainConnection = $connection;
+                    $numberOfTransfers = $T3_transfers;
+                } else {
+                    $Tmin = $T2_stayOnTripArrivalTime;
+
+                    // We're staying on this trip. This also implicates a key in $T exists for this trip. We're getting off at the previous exit for this vehicle.
+                    if ($T2_stayOnTripArrivalTime < self::TIME_INFINITE) {
+                        $exitTrainConnection = $T[$connection->getTrip()][self::KEY_ARRIVAL_CONNECTION];
+                    }
+                    $numberOfTransfers = $T2_transfers;
+                }
+
+                if ($T1_walkingArrivalTime < $Tmin) {
+                    $Tmin = $T1_walkingArrivalTime;
+
+                    // We're walking from here, so get off here
+                    $exitTrainConnection = $connection;
+                    $numberOfTransfers = $T1_transfers;
+                }
 
                 // ====================================================== //
                 // END GET EARLIEST ARRIVAL TIME
@@ -253,28 +296,6 @@ class ConnectionsRepository
                 // ====================================================== //
                 // START UPDATE T
                 // ====================================================== //
-
-                // Where do we need to get off the train?
-                // The following if-else structure does not follow the Journey Extraction algorithm as described in the CSA (march 2017) paper.
-                // Not only do we want to reconstruct the journey (the vehicles used), but we want departure and arrival times for every single leg.
-                // In order to also have the arrival times, we will always save the arrival connection for the next hop, instead of the arrival connection for the entire journey.
-                if ($Tmin == $T1_walkingArrivalTime) {
-                    // We're walking from here, so get off here
-                    $exitTrainConnection = $connection;
-
-                    $numberOfTransfers = $T1_transfers;
-                } else if ($Tmin == $T2_stayOnTripArrivalTime) {
-                    // We're staying on this trip. This also implicates a key in $T exists for this trip. We're getting off at the previous exit for this vehicle.
-                    $exitTrainConnection = $T[$connection->getTrip()][self::KEY_ARRIVAL_CONNECTION];
-
-                    $numberOfTransfers = $T2_transfers;
-                } else {
-                    // $Tmin == $T3_transfer
-                    // We're transferring here, so get off the train in this station
-                    $exitTrainConnection = $connection;
-
-                    $numberOfTransfers = $T3_transfers;
-                }
 
                 // Set the fastest arrival time for this vehicle, and set the connection at which we have to hop off
                 if (key_exists($connection->getTrip(), $T)) {
@@ -296,7 +317,7 @@ class ConnectionsRepository
                 // ====================================================== //
 
                 // Create a quadruple to update S
-                $quad[self::KEY_DEPARTURE_TIME] = $connection->getDelayedDepartureTime();
+                $quad[self::KEY_DEPARTURE_TIME] = $connection->getDepartureTime();
                 $quad[self::KEY_ARRIVAL_TIME] = $Tmin;
 
                 // Additional data for journey extraction
@@ -308,12 +329,14 @@ class ConnectionsRepository
                 if (key_exists($departureStop, $S)) {
                     $numberOfPairs = count($S[$departureStop]);
 
-                    $q = $S[$departureStop][$numberOfPairs - 1];
-                    // If q does not dominate pair
+                    $existingQuad = $S[$departureStop][$numberOfPairs - 1];
+                    // If $existingQuad does not dominate $quad
                     // The new departure time is always less or equal than an already stored one
-                    if ($quad[self::KEY_ARRIVAL_TIME] < $q[self::KEY_ARRIVAL_TIME]) {
-                        if ($quad[self::KEY_DEPARTURE_TIME] == $q[self::KEY_DEPARTURE_TIME]) {
-                            // Replace q at the back
+
+                    if ($quad[self::KEY_ARRIVAL_TIME] < $existingQuad[self::KEY_ARRIVAL_TIME]) {
+                        // Log::info("Reach $destination from $departureStop departing at {$quad[self::KEY_DEPARTURE_TIME]} arriving at {$quad[self::KEY_ARRIVAL_TIME]}");
+                        if ($quad[self::KEY_DEPARTURE_TIME] == $existingQuad[self::KEY_DEPARTURE_TIME]) {
+                            // Replace $existingQuad at the back
                             $S[$departureStop][$numberOfPairs - 1] = $quad;
                         } else {
                             // We're iterating over descending departure times, therefore the departure
@@ -324,9 +347,8 @@ class ConnectionsRepository
 
                 } else {
 
-                    $S[$connection->getDepartureStopUri()] = [];
-                    $S[$connection->getDepartureStopUri()][0] = $quad;
-
+                    $S[$departureStop] = [];
+                    $S[$departureStop][] = $quad;
                 }
 
                 // ====================================================== //
@@ -339,8 +361,6 @@ class ConnectionsRepository
         if (!key_exists($origin, $S)) {
             return new ConnectionList(new Station($origin, $language), new Station($destination, $language), [], new Carbon(), Carbon::now()->addMinute(), md5($etag));
         }
-
-        $numberOfResultsFound = count($S[$origin]);
 
         foreach ($S[$origin] as $k => $quad) {
             // $it will iterate over all the legs (journeys) in a connection
@@ -356,22 +376,38 @@ class ConnectionsRepository
                 // Find the next hop. This is the first reachable hop,
                 // or even stricter defined: the hop which will get us to the destination at the same arrival time.
                 // There will be a one second difference between the arrival times, as a result of the leg optimization
-                while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $it[self::KEY_ARRIVAL_TIME] - 1) {
+                while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $it[self::KEY_ARRIVAL_TIME]) {
                     $i--;
                 }
-                $journeys[] = new Journey($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION], $language);
+
+                $journeys[] = new JourneyLeg($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION], $language);
                 $it = $it_options[$i];
             }
 
             // Store the last leg
-            $journeys[] = new Journey($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION], $language);
+            $journeys[] = new JourneyLeg($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION], $language);
 
             // Store the entire connection, in the meanwhile inversing the array to have earliest connections first
-            $results[$numberOfResultsFound - $k - 1] = new Connection($journeys);
+            $results[] = new Connection($journeys);
         }
 
-        // Store and return the list of connections
-        return new ConnectionList(new Station($origin, $language), new Station($destination, $language), $results, new Carbon(), Carbon::now()->addMinute(), md5($etag));
+        usort($results, function (Connection $a, Connection $b) {
+            if ($a->getDepartureTime()->lessThan($b->getDepartureTime())) {
+                return -1;
+            } else if ($a->getDepartureTime()->equalTo($b->getDepartureTime())) {
+                return 0;
+            } else {
+                return 1;
+            }
+        });
 
+
+        // Store and return the list of connections
+        return new ConnectionList(new Station($origin, $language),
+            new Station($destination, $language),
+            array_values($results),
+            new Carbon(),
+            Carbon::now()->addMinute(),
+            md5($etag));
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Repositories;
 use App\Http\Models\LinkedConnectionPage;
 use Cache;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 
 /**
@@ -25,18 +26,18 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
      */
     public function __construct()
     {
-        $this->BASE_URL = env("LINKED_CONNECTIONS_BASE_URL", "https://graph.irail.be/sncb/connection");
+        $this->BASE_URL = env("LINKED_CONNECTIONS_BASE_URL", "https://graph.irail.be/sncb/connections");
     }
 
     /**
      * Build the URL to retrieve data from LinkedConnections
      *
-     * @param Carbon $departureTime
+     * @param int $departureTime
      * @return string
      */
-    private function getLinkedConnectionsURL(Carbon $departureTime): string
+    private function getLinkedConnectionsURL($departureTime): string
     {
-        $departureTime = $departureTime->copy();
+        $departureTime = Carbon::parse($departureTime);
         $departureTime = $this->getRoundedDepartureTime($departureTime);
         return $this->BASE_URL . "?departureTime=" . date_format($departureTime, 'Y-m-d\TH:i:s') . '.000Z';
     }
@@ -44,19 +45,19 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
 
     public function getRawLinkedConnections($pointer)
     {
-        if ($pointer instanceof Carbon) {
-            return $this->getRawLinkedConnectionsByUrl($this->getLinkedConnectionsURL($pointer));
-        } elseif (is_string($pointer)) {
+        if (is_string($pointer)) {
             return $this->getRawLinkedConnectionsByUrl($pointer);
+        } else if ($pointer instanceof Carbon) {
+            return $this->getRawLinkedConnectionsByUrl($this->getLinkedConnectionsURL($pointer->toAtomString()));
         } else {
             throw new \InvalidArgumentException("Invalid argument type");
         }
     }
 
-    private function getRawLinkedConnectionsByUrl($url)
+    private function getRawLinkedConnectionsByUrl(string $url)
     {
         $pageCacheKey = 'lcraw|' . $url;
-
+        Log::info("Getting linked connections from $url");
         // Page (array including json, etag and expiresAt), kept for 2 hours so we can reuse the etag
         if (Cache::has($pageCacheKey)) {
             /**
@@ -71,24 +72,19 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
             }
         }
 
-        // TODO: when there is a delay, subtract the delay from the departure or arrival time
-
         // If not valid, retrieve (but try Etag as well)
         if (!isset($raw)) {
 
-            // No previous data, or previous data too old: re-validate
-            $endpoint = $this->getLinkedConnectionsURL($url);
-
             $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $endpoint);
+            curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 
             // If we have a cached old value, included header for conditional get
             if (isset($previousResponse)) {
-                curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
                     'If-None-Match: "' . $previousResponse['etag'] . '"',
-                ));
+                ]);
             }
 
             $headers = [];

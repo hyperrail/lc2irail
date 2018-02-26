@@ -21,7 +21,7 @@ interface LinkedConnectionsRepositoryContract
      * @param Carbon $departureTime The time for which departures should be returned
      * @return \App\Http\Models\LinkedConnectionPage
      */
-    public function getLinkedConnections(Carbon $departureTime): LinkedConnectionPage;
+    public function getLinkedConnections($departureTime): LinkedConnectionPage;
 
     /**
      * Retrieve an array of LinkedConnection objects for a certain departure time

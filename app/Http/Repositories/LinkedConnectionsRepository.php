@@ -147,7 +147,8 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $prev = $windowPage->getPreviousPointer();
             }
             $next = $windowPage->getNextPointer();
-            Log:info("Next pointer " . $next);
+            Log:
+            info("Next pointer " . $next);
         }
 
         // Calculate a new etag based on the concatenation of all other etags
@@ -171,7 +172,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
     /**
      * Get the first n linked connections, starting at a certain time
      * @param \Carbon\Carbon $departureTime The departure time from where the search should start
-     * @param int $results The number of linked connections to retrieve
+     * @param int            $results The number of linked connections to retrieve
      * @return \App\Http\Models\LinkedConnectionPage A linkedConnections page containing all results
      */
     public
@@ -242,9 +243,14 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      * @return \App\Http\Models\LinkedConnectionPage
      */
     public
-    function getLinkedConnections(Carbon $departureTime): LinkedConnectionPage
+    function getLinkedConnections($departureTime): LinkedConnectionPage
     {
-        $cacheKey = 'lc|getLinkedConnections|' . $departureTime->getTimestamp();
+        if ($departureTime instanceof Carbon) {
+            $cacheKey = 'lc|getLinkedConnections|' . $departureTime->getTimestamp();
+        } else {
+            $cacheKey = 'lc|getLinkedConnections|' . $departureTime;
+        }
+
         if (Cache::has($cacheKey)) {
             return Cache::get($cacheKey);
         }

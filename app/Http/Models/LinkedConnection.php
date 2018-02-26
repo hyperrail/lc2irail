@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Models;
+
 use Carbon\Carbon;
 
 
@@ -66,7 +67,7 @@ class LinkedConnection
 
     public function getDepartureTime(): int
     {
-        return $this->departureTime ;
+        return $this->departureTime;
     }
 
     public function getDelayedDepartureTime(): int

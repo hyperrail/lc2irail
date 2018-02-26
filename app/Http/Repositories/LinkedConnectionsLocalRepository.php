@@ -61,11 +61,11 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         $scheduledBase = $this->BASE_DIRECTORY . '/linked_pages/' . $this->AGENCY;
         $realtimeBase = $this->BASE_DIRECTORY . '/real_time/' . $this->AGENCY;
 
-        $scheduledMostRecent = array_diff(scandir($scheduledBase, SCANDIR_SORT_DESCENDING), array('..', '.'))[0];
+        $scheduledMostRecent = array_diff(scandir($scheduledBase, SCANDIR_SORT_DESCENDING), ['..', '.'])[0];
 
         // TODO: check if this behaviour is correct when there are multiple folders
         // TODO: what should be done while the generation is running (old complete data and new incomplete data available)
-        $scheduledDataCompressed = false;
+        $scheduledDataCompressed = false; // Never compressed
         $scheduledFilePath = $scheduledBase . '/' . $scheduledMostRecent . '/' . date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld';
         if (!file_exists($scheduledFilePath)) {
             $scheduledDataCompressed = true;
