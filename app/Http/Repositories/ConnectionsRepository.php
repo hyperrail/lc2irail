@@ -169,6 +169,7 @@ class ConnectionsRepository
 
                     // We're walking, so this connections has no transfers between it and the destination
                     $T1_transfers = 0;
+                    // Log::info("[{$connection->getId()}] Walking possible with arrival time  $T1_walkingArrivalTime.");
                 } else {
                     // When this isn't the destination stop, we would arrive somewhere far, far in the future.
                     // We're walking infinitly slow: we prefer a train
@@ -179,6 +180,7 @@ class ConnectionsRepository
                     // Default value to prevent errors due to undefined variables.
                     // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
                     $T1_transfers = false;
+                    // Log::info("[{$connection->getId()}] Walking not possible.");
                 }
 
                 // Determine T2, the first possible time of arrival when remaining seated
@@ -187,7 +189,7 @@ class ConnectionsRepository
                     $T2_stayOnTripArrivalTime = $T[$connection->getTrip()][self::KEY_ARRIVAL_TIME];
                     // Remaining seated will have the same number of transfers between this connection and the destination, as from the best exit stop and the destination
                     $T2_transfers = $T[$connection->getTrip()][self::KEY_TRANSFER_COUNT];
-
+                    // Log::info("[{$connection->getId()}] Remaining seated possible with arrival time $T2_stayOnTripArrivalTime and $T2_transfers transfers.");
                 } else {
                     // When there isn't a fastest arrival time for this stop yet, it means we haven't found a connection
                     // - To arrive in the destination using this vehicle, or
@@ -196,6 +198,7 @@ class ConnectionsRepository
                     // Default value to prevent errors due to undefined variables.
                     // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
                     $T2_transfers = false;
+                    // Log::info("[{$connection->getId()}] Remaining seated not possible");
                 }
 
                 // Determine T3, the time of arrival when taking the best possible transfer in this station
@@ -213,12 +216,11 @@ class ConnectionsRepository
                     // As long as we're arriving AFTER the pair departure, move forward in the list until we find a departure which is reachable
                     // The list is sorted by descending departure time, so the earliest departures are in the back (so we move back to front)
                     while (($pair[self::KEY_DEPARTURE_TIME] - 300 < $connection->getArrivalTime() || $pair[self::KEY_TRANSFER_COUNT] >= $maxTransfers) && $pairPosition > 0) {
-
                         $pairPosition--;
                         $pair = $S[$arrivalStop][$pairPosition];
                     }
 
-                    if ($pairPosition >= 0) {
+                    if ($pair[self::KEY_DEPARTURE_TIME] - 300 >= $connection->getArrivalTime() && $pair[self::KEY_TRANSFER_COUNT] <= $maxTransfers) {
                         // If a result was found in the list, this is the earliest arrival time when transferring here
                         // Optional: Adding one second to the arrival time will ensure that the route with the smallest number of legs is chosen.
                         // This would not affect journey extaction, but would prefer routes with less legs when arrival times are identical (as their arrival time will be one second earlier)
@@ -228,6 +230,8 @@ class ConnectionsRepository
                         // Using this transfer will increase the number of transfers with 1
                         $T3_transfers = $pair[self::KEY_TRANSFER_COUNT] + 1;
 
+                        // $transferTime = $pair[self::KEY_DEPARTURE_TIME] - $connection->getArrivalTime();
+                        // Log::info("[{$connection->getId()}] Transferring possible with arrival time $T3_transferArrivalTime and $T3_transfers transfers. Transfer time is $transferTime.");
                     } else {
 
                         // When there isn't a reachable connection, transferring isn't an option
@@ -235,6 +239,7 @@ class ConnectionsRepository
                         // Default value to prevent errors due to undefined variables.
                         // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
                         $T3_transfers = false;
+                        // Log::info("[{$connection->getId()}] Transferring not possible: No transfers reachable");
                     }
 
                 } else {
@@ -243,6 +248,7 @@ class ConnectionsRepository
                     // Default value to prevent errors due to undefined variables.
                     // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
                     $T3_transfers = false;
+                    // Log::info("[{$connection->getId()}] Transferring not possible: No transfers exist");
                 }
 
                 // Tmin = Tc in the paper
@@ -261,6 +267,8 @@ class ConnectionsRepository
 
                     // We're transferring here, so get off the train in this station
                     $exitTrainConnection = $connection;
+
+                    // We already incremented this transfer counter when determining the train
                     $numberOfTransfers = $T3_transfers;
                 } else {
                     $Tmin = $T2_stayOnTripArrivalTime;
@@ -272,7 +280,8 @@ class ConnectionsRepository
                     $numberOfTransfers = $T2_transfers;
                 }
 
-                if ($T1_walkingArrivalTime < $Tmin) {
+                // For equal times, we prefer just arriving.
+                if ($T1_walkingArrivalTime <= $Tmin) {
                     $Tmin = $T1_walkingArrivalTime;
 
                     // We're walking from here, so get off here
@@ -301,9 +310,11 @@ class ConnectionsRepository
                 if (key_exists($connection->getTrip(), $T)) {
                     // When there is a faster way for this trip, it's by getting of at this connection's arrival station and transferring (or having arrived)
                     if ($Tmin < $T[$connection->getTrip()][self::KEY_ARRIVAL_TIME]) {
+                        // Log::info("[{$connection->getId()}] Updating T: Arrive at $Tmin using {$connection->getRoute()} with $numberOfTransfers transfers. Get off at {$exitTrainConnection->getArrivalStopUri()}.");
                         $T[$connection->getTrip()] = [self::KEY_ARRIVAL_TIME => $Tmin, self::KEY_ARRIVAL_CONNECTION => $exitTrainConnection, self::KEY_TRANSFER_COUNT => $numberOfTransfers];
                     }
                 } else {
+                    // Log::info("[{$connection->getId()}] Updating T: New: Arrive at $Tmin using {$connection->getRoute()} with $numberOfTransfers transfers. Get off at {$exitTrainConnection->getArrivalStopUri()}.");
                     // To travel towards the destination, get off at the current arrival station (followed by a transfer or walk/arriving)
                     $T[$connection->getTrip()] = [self::KEY_ARRIVAL_TIME => $Tmin, self::KEY_ARRIVAL_CONNECTION => $exitTrainConnection, self::KEY_TRANSFER_COUNT => $numberOfTransfers];
                 }
@@ -334,7 +345,7 @@ class ConnectionsRepository
                     // The new departure time is always less or equal than an already stored one
 
                     if ($quad[self::KEY_ARRIVAL_TIME] < $existingQuad[self::KEY_ARRIVAL_TIME]) {
-                        // Log::info("Reach $destination from $departureStop departing at {$quad[self::KEY_DEPARTURE_TIME]} arriving at {$quad[self::KEY_ARRIVAL_TIME]}");
+                        // Log::info("[{$connection->getId()}] Updating S: Reach $destination from $departureStop departing at {$quad[self::KEY_DEPARTURE_TIME]} arriving at {$quad[self::KEY_ARRIVAL_TIME]}");
                         if ($quad[self::KEY_DEPARTURE_TIME] == $existingQuad[self::KEY_DEPARTURE_TIME]) {
                             // Replace $existingQuad at the back
                             $S[$departureStop][$numberOfPairs - 1] = $quad;
@@ -346,7 +357,7 @@ class ConnectionsRepository
                     }
 
                 } else {
-
+                    // Log::info("[{$connection->getId()}] Updating S: New: Reach $destination from $departureStop departing at {$quad[self::KEY_DEPARTURE_TIME]} arriving at {$quad[self::KEY_ARRIVAL_TIME]}");
                     $S[$departureStop] = [];
                     $S[$departureStop][] = $quad;
                 }
