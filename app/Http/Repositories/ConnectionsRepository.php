@@ -159,6 +159,7 @@ class ConnectionsRepository
                 // START GET EARLIEST ARRIVAL TIME
                 // ====================================================== //
 
+                // Log::info((new Station($connection->getDepartureStopUri()))->getDefaultName() .' - '.(new Station($connection->getArrivalStopUri()))->getDefaultName() .' - '. $connection->getRoute());
 
                 // Determine T1, the time when walking from here to the destination
                 if ($connection->getArrivalStopUri() == $destination) {
@@ -230,7 +231,7 @@ class ConnectionsRepository
                         // Using this transfer will increase the number of transfers with 1
                         $T3_transfers = $pair[self::KEY_TRANSFER_COUNT] + 1;
 
-                        // $transferTime = $pair[self::KEY_DEPARTURE_TIME] - $connection->getArrivalTime();
+                        $transferTime = $pair[self::KEY_DEPARTURE_TIME] - $connection->getArrivalTime();
                         // Log::info("[{$connection->getId()}] Transferring possible with arrival time $T3_transferArrivalTime and $T3_transfers transfers. Transfer time is $transferTime.");
                     } else {
 
@@ -262,7 +263,8 @@ class ConnectionsRepository
                 // If T3 < T2, prefer a transfer. If T2 <= T3, prefer remaining seated.
                 // Here we force the least amount of transfers for the same arrival time
                 // TODO: here we could also apply "3 minutes longer travel for one less arrival"
-                if ($T3_transferArrivalTime < $T2_stayOnTripArrivalTime) {
+                if ($T3_transferArrivalTime <= $T2_stayOnTripArrivalTime) {
+                    // Log::info("Transfer time!");
                     $Tmin = $T3_transferArrivalTime;
 
                     // We're transferring here, so get off the train in this station
@@ -271,6 +273,7 @@ class ConnectionsRepository
                     // We already incremented this transfer counter when determining the train
                     $numberOfTransfers = $T3_transfers;
                 } else {
+                    // Log::info("Train time!");
                     $Tmin = $T2_stayOnTripArrivalTime;
 
                     // We're staying on this trip. This also implicates a key in $T exists for this trip. We're getting off at the previous exit for this vehicle.
@@ -282,6 +285,7 @@ class ConnectionsRepository
 
                 // For equal times, we prefer just arriving.
                 if ($T1_walkingArrivalTime <= $Tmin) {
+                    // Log::info("Nvm, walking time!");
                     $Tmin = $T1_walkingArrivalTime;
 
                     // We're walking from here, so get off here
@@ -309,12 +313,18 @@ class ConnectionsRepository
                 // Set the fastest arrival time for this vehicle, and set the connection at which we have to hop off
                 if (key_exists($connection->getTrip(), $T)) {
                     // When there is a faster way for this trip, it's by getting of at this connection's arrival station and transferring (or having arrived)
-                    if ($Tmin < $T[$connection->getTrip()][self::KEY_ARRIVAL_TIME]) {
-                        // Log::info("[{$connection->getId()}] Updating T: Arrive at $Tmin using {$connection->getRoute()} with $numberOfTransfers transfers. Get off at {$exitTrainConnection->getArrivalStopUri()}.");
+
+                    // Can also be equal for a transfer with the best transfer (don't do bru south - central - north - transfer - north - central - south
+                    // We're updating an existing connection, with a way to get off earlier (iterating using descending departure times).
+                    // This only modifies the transfer stop, nothing else in the journey
+                    if ($Tmin <= $T[$connection->getTrip()][self::KEY_ARRIVAL_TIME]) {
+                        // $exit = (new Station($exitTrainConnection->getArrivalStopUri()))->getDefaultName();
+                        // Log::info("[{$connection->getId()}] Updating T: Arrive at $Tmin using {$connection->getRoute()} with $numberOfTransfers transfers. Get off at {$exit}.");
                         $T[$connection->getTrip()] = [self::KEY_ARRIVAL_TIME => $Tmin, self::KEY_ARRIVAL_CONNECTION => $exitTrainConnection, self::KEY_TRANSFER_COUNT => $numberOfTransfers];
                     }
                 } else {
-                    // Log::info("[{$connection->getId()}] Updating T: New: Arrive at $Tmin using {$connection->getRoute()} with $numberOfTransfers transfers. Get off at {$exitTrainConnection->getArrivalStopUri()}.");
+                    // $exit = (new Station($exitTrainConnection->getArrivalStopUri()))->getDefaultName();
+                    // Log::info("[{$connection->getId()}] Updating T: New: Arrive at $Tmin using {$connection->getRoute()} with $numberOfTransfers transfers. Get off at {$exit}.");
                     // To travel towards the destination, get off at the current arrival station (followed by a transfer or walk/arriving)
                     $T[$connection->getTrip()] = [self::KEY_ARRIVAL_TIME => $Tmin, self::KEY_ARRIVAL_CONNECTION => $exitTrainConnection, self::KEY_TRANSFER_COUNT => $numberOfTransfers];
                 }
@@ -345,7 +355,7 @@ class ConnectionsRepository
                     // The new departure time is always less or equal than an already stored one
 
                     if ($quad[self::KEY_ARRIVAL_TIME] < $existingQuad[self::KEY_ARRIVAL_TIME]) {
-                        // Log::info("[{$connection->getId()}] Updating S: Reach $destination from $departureStop departing at {$quad[self::KEY_DEPARTURE_TIME]} arriving at {$quad[self::KEY_ARRIVAL_TIME]}");
+                        // // Log::info("[{$connection->getId()}] Updating S: Reach $destination from $departureStop departing at {$quad[self::KEY_DEPARTURE_TIME]} arriving at {$quad[self::KEY_ARRIVAL_TIME]}");
                         if ($quad[self::KEY_DEPARTURE_TIME] == $existingQuad[self::KEY_DEPARTURE_TIME]) {
                             // Replace $existingQuad at the back
                             $S[$departureStop][$numberOfPairs - 1] = $quad;
