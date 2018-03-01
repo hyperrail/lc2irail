@@ -226,7 +226,9 @@ class ConnectionsRepository
                         // Optional: Adding one second to the arrival time will ensure that the route with the smallest number of legs is chosen.
                         // This would not affect journey extaction, but would prefer routes with less legs when arrival times are identical (as their arrival time will be one second earlier)
                         // It would prefer remaining seated over transferring when both would result in the same arrival time
-                        $T3_transferArrivalTime = $pair[self::KEY_ARRIVAL_TIME] + 1;
+                        // TODO: increase to 240 -> this way we prefer one less transfer in exchange for 10 minutes longer trip
+                        // See http://lc2irail.dev/connections/008822160/008895257/departing/1519924311
+                        $T3_transferArrivalTime = $pair[self::KEY_ARRIVAL_TIME] + 240;
 
                         // Using this transfer will increase the number of transfers with 1
                         $T3_transfers = $pair[self::KEY_TRANSFER_COUNT] + 1;
@@ -317,7 +319,45 @@ class ConnectionsRepository
                     // Can also be equal for a transfer with the best transfer (don't do bru south - central - north - transfer - north - central - south
                     // We're updating an existing connection, with a way to get off earlier (iterating using descending departure times).
                     // This only modifies the transfer stop, nothing else in the journey
-                    if ($Tmin <= $T[$connection->getTrip()][self::KEY_ARRIVAL_TIME]) {
+                    if ($Tmin == $T[$connection->getTrip()][self::KEY_ARRIVAL_TIME]
+                        && $T3_transferArrivalTime == $T2_stayOnTripArrivalTime
+                        && key_exists($T[$connection->getTrip()][self::KEY_ARRIVAL_CONNECTION]->getArrivalStopUri(), $S)
+                        && key_exists($connection->getArrivalStopUri(), $S)
+                    ) {
+                        // When the arrival time is the same, the number of transfers should also be the same
+                        // We prefer the exit connection with the largest transfer time
+
+                        // Suppose we exit the train here: $connection. Does this improve on the transfer time?
+                        $currentTrainExit = $T[$connection->getTrip()][self::KEY_ARRIVAL_CONNECTION];
+
+                        // Now we need the departure in the next station!
+
+                        // Create a quadruple to lookup the first reachable connection in S
+                        // Create one, because we don't know where we'd get on this train
+                        $quad[self::KEY_DEPARTURE_TIME] = null;
+                        $quad[self::KEY_DEPARTURE_CONNECTION] = $connection;
+
+                        // Current situation
+                        $quad[self::KEY_ARRIVAL_TIME] = $Tmin;
+                        $quad[self::KEY_ARRIVAL_CONNECTION] = $currentTrainExit;
+
+                        $currentTransfer = $this->getFirstReachableConnection($S, $quad)[self::KEY_DEPARTURE_TIME] - $currentTrainExit->getArrivalTime();
+
+                        // New situation
+                        $quad[self::KEY_ARRIVAL_TIME] = $Tmin;
+                        $quad[self::KEY_ARRIVAL_CONNECTION] = $exitTrainConnection;
+
+                        $newTransfer = $this->getFirstReachableConnection($S, $quad)[self::KEY_DEPARTURE_TIME] - $exitTrainConnection->getArrivalTime();
+
+                        // If the new situation is better
+                        if ($newTransfer > $currentTransfer) {
+                            $T[$connection->getTrip()] = [self::KEY_ARRIVAL_TIME => $Tmin, self::KEY_ARRIVAL_CONNECTION => $exitTrainConnection, self::KEY_TRANSFER_COUNT => $numberOfTransfers];
+                        }
+
+
+                    }
+
+                    if ($Tmin < $T[$connection->getTrip()][self::KEY_ARRIVAL_TIME]) {
                         // $exit = (new Station($exitTrainConnection->getArrivalStopUri()))->getDefaultName();
                         // Log::info("[{$connection->getId()}] Updating T: Arrive at $Tmin using {$connection->getRoute()} with $numberOfTransfers transfers. Get off at {$exit}.");
                         $T[$connection->getTrip()] = [self::KEY_ARRIVAL_TIME => $Tmin, self::KEY_ARRIVAL_CONNECTION => $exitTrainConnection, self::KEY_TRANSFER_COUNT => $numberOfTransfers];
@@ -392,17 +432,8 @@ class ConnectionsRepository
             // As long as $it doesn't contain the leg (journey) which arrives at our destination, keep searching.
             // Footpaths to walk to the destination aren't supported, therefore this is a valid check.
             while ($it[self::KEY_ARRIVAL_CONNECTION]->getArrivalStopUri() != $destination) {
-                $it_options = $S[$it[self::KEY_ARRIVAL_CONNECTION]->getArrivalStopUri()];
-                $i = count($it_options) - 1;
-                // Find the next hop. This is the first reachable hop,
-                // or even stricter defined: the hop which will get us to the destination at the same arrival time.
-                // There will be a one second difference between the arrival times, as a result of the leg optimization
-                while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $it[self::KEY_ARRIVAL_TIME] - 1) {
-                    $i--;
-                }
-
                 $journeys[] = new JourneyLeg($it[self::KEY_DEPARTURE_CONNECTION], $it[self::KEY_ARRIVAL_CONNECTION], $language);
-                $it = $it_options[$i];
+                $it = $this->getFirstReachableConnection($S, $it);
             }
 
             // Store the last leg
@@ -430,5 +461,19 @@ class ConnectionsRepository
             new Carbon(),
             Carbon::now()->addMinute(),
             md5($etag));
+    }
+
+    function getFirstReachableConnection($S, $arrivalQuad)
+    {
+        $it_options = $S[$arrivalQuad[self::KEY_ARRIVAL_CONNECTION]->getArrivalStopUri()];
+        $i = count($it_options) - 1;
+        // Find the next hop. This is the first reachable hop,
+        // or even stricter defined: the hop which will get us to the destination at the same arrival time.
+        // There will be a one second difference between the arrival times, as a result of the leg optimization
+        while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $arrivalQuad[self::KEY_ARRIVAL_TIME] - 240) {
+            $i--;
+        }
+
+        return $it_options[$i];
     }
 }
