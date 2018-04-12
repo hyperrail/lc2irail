@@ -44,7 +44,7 @@ class ConnectionsController extends Controller
 
         $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|" . $departureTime->getTimestamp() . "|" . $arrivalTime->getTimestamp() . "|" . $language;
 
-        if (false && Cache::has($cacheKey)) {
+        if (Cache::has($cacheKey)) {
             $result = Cache::get($cacheKey);
 
             return response()->json($result, 200)->withHeaders([
@@ -61,7 +61,7 @@ class ConnectionsController extends Controller
         $repository = new ConnectionsRepository();
         $result = $repository->getConnections($origin->getUri(), $destination->getUri(), $departureTime, $arrivalTime, 3, 8, $language);
 
-        //Cache::put($cacheKey, $result, $result->getExpiresAt());
+        Cache::put($cacheKey, $result, $result->getExpiresAt());
 
         return response()->json($result, 200)->withHeaders([
             'Expires' => $result->getExpiresAt()->format('D, d M Y H:i:s e'),
@@ -98,7 +98,7 @@ class ConnectionsController extends Controller
 
         $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|departure|" . $requestTime->getTimestamp() . "|" . $language;
 
-        if (false && Cache::has($cacheKey)) {
+        if (Cache::has($cacheKey)) {
             $result = Cache::get($cacheKey);
 
             return response()->json($result, 200)->withHeaders([
@@ -115,7 +115,7 @@ class ConnectionsController extends Controller
         $repository = new ConnectionsRepository();
         $result = $repository->getConnectionsByDepartureTime($origin->getUri(), $destination->getUri(), $requestTime, $language);
 
-        //Cache::put($cacheKey, $result, $result->getExpiresAt());
+        Cache::put($cacheKey, $result, $result->getExpiresAt());
 
         return response()->json($result, 200)->withHeaders([
             'Expires' => $result->getExpiresAt()->format('D, d M Y H:i:s e'),
@@ -141,7 +141,7 @@ class ConnectionsController extends Controller
 
         $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|arrival|" . $requestTime->getTimestamp() . "|" . $language;
 
-        if (false && Cache::has($cacheKey)) {
+        if (Cache::has($cacheKey)) {
             $result = Cache::get($cacheKey);
 
             return response()->json($result, 200)->withHeaders([
@@ -158,7 +158,7 @@ class ConnectionsController extends Controller
         $repository = new ConnectionsRepository();
         $result = $repository->getConnectionsByArrivalTime($origin->getUri(), $destination->getUri(), $requestTime, $language);
 
-        //Cache::put($cacheKey, $result, $result->getExpiresAt());
+        Cache::put($cacheKey, $result, $result->getExpiresAt());
 
         return response()->json($result, 200)->withHeaders([
             'Expires' => $result->getExpiresAt()->format('D, d M Y H:i:s e'),

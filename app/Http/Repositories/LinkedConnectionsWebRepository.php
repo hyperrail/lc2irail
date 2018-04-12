@@ -38,7 +38,6 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
     private function getLinkedConnectionsURL($departureTime): string
     {
         $departureTime = Carbon::parse($departureTime);
-        $departureTime = $this->getRoundedDepartureTime($departureTime);
         return $this->BASE_URL . "?departureTime=" . date_format($departureTime, 'Y-m-d\TH:i:s') . '.000Z';
     }
 
@@ -135,10 +134,5 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
         }
 
         return $raw;
-    }
-
-    private function getRoundedDepartureTime(Carbon $departureTime): Carbon
-    {
-        return $departureTime->subMinute($departureTime->minute % 10)->second(0);
     }
 }

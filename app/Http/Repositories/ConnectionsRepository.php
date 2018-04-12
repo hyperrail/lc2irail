@@ -24,6 +24,8 @@ class ConnectionsRepository
     private const KEY_TRANSFER_COUNT = 'transfers';
 
     private const TIME_INFINITE = 2147483647;
+    const TransferEquivalentTravelTime = 240;
+    const IntraStopFootpathTime = 300;
 
     /**
      * @var LinkedConnectionsRepositoryContract
@@ -38,7 +40,7 @@ class ConnectionsRepository
     public function getConnectionsByDepartureTime($origin, $destination, $departuretime, $language): ConnectionList
     {
         // By not passing an arrival time, getConnections will determine set a good value to start scanning
-        return $this->getConnections($origin, $destination, $departuretime, null, 10, 8, $language);
+        return $this->getConnections($origin, $destination, $departuretime, null, 10, $_GET['results'], $language);
     }
 
     /**
@@ -50,7 +52,7 @@ class ConnectionsRepository
      */
     public function getConnectionsByArrivalTime($origin, $destination, Carbon $arrivaltime, $language): ConnectionList
     {
-        return $this->getConnections($origin, $destination, null, $arrivaltime, 10, 8, $language);
+        return $this->getConnections($origin, $destination, null, $arrivaltime, 10, $_GET['results'], $language);
     }
 
     public function getConnections($origin, $destination, Carbon $departureTime = null, Carbon $arrivaltime = null, $maxTransfers = 10, $resultCount = 8, $language = 'en')
@@ -216,24 +218,23 @@ class ConnectionsRepository
                     // TODO: replace hard-coded transfer time
                     // As long as we're arriving AFTER the pair departure, move forward in the list until we find a departure which is reachable
                     // The list is sorted by descending departure time, so the earliest departures are in the back (so we move back to front)
-                    while (($pair[self::KEY_DEPARTURE_TIME] - 300 < $connection->getArrivalTime() || $pair[self::KEY_TRANSFER_COUNT] >= $maxTransfers) && $pairPosition > 0) {
+                    while (($pair[self::KEY_DEPARTURE_TIME] - self::IntraStopFootpathTime < $connection->getArrivalTime() || $pair[self::KEY_TRANSFER_COUNT] >= $maxTransfers) && $pairPosition > 0) {
                         $pairPosition--;
                         $pair = $S[$arrivalStop][$pairPosition];
                     }
 
-                    if ($pair[self::KEY_DEPARTURE_TIME] - 300 >= $connection->getArrivalTime() && $pair[self::KEY_TRANSFER_COUNT] <= $maxTransfers) {
+                    if ($pair[self::KEY_DEPARTURE_TIME] - self::IntraStopFootpathTime >= $connection->getArrivalTime() && $pair[self::KEY_TRANSFER_COUNT] <= $maxTransfers) {
                         // If a result was found in the list, this is the earliest arrival time when transferring here
                         // Optional: Adding one second to the arrival time will ensure that the route with the smallest number of legs is chosen.
                         // This would not affect journey extaction, but would prefer routes with less legs when arrival times are identical (as their arrival time will be one second earlier)
                         // It would prefer remaining seated over transferring when both would result in the same arrival time
-                        // TODO: increase to 240 -> this way we prefer one less transfer in exchange for 10 minutes longer trip
                         // See http://lc2irail.dev/connections/008822160/008895257/departing/1519924311
-                        $T3_transferArrivalTime = $pair[self::KEY_ARRIVAL_TIME] + 240;
+                        $T3_transferArrivalTime = $pair[self::KEY_ARRIVAL_TIME] + self::TransferEquivalentTravelTime;
 
                         // Using this transfer will increase the number of transfers with 1
                         $T3_transfers = $pair[self::KEY_TRANSFER_COUNT] + 1;
 
-                        $transferTime = $pair[self::KEY_DEPARTURE_TIME] - $connection->getArrivalTime();
+                        // $transferTime = $pair[self::KEY_DEPARTURE_TIME] - $connection->getArrivalTime();
                         // Log::info("[{$connection->getId()}] Transferring possible with arrival time $T3_transferArrivalTime and $T3_transfers transfers. Transfer time is $transferTime.");
                     } else {
 
@@ -470,10 +471,15 @@ class ConnectionsRepository
         // Find the next hop. This is the first reachable hop,
         // or even stricter defined: the hop which will get us to the destination at the same arrival time.
         // There will be a one second difference between the arrival times, as a result of the leg optimization
-        while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $arrivalQuad[self::KEY_ARRIVAL_TIME] - 240) {
+        while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $arrivalQuad[self::KEY_ARRIVAL_TIME] - self::TransferEquivalentTravelTime) {
             $i--;
         }
-
+if ($i == -1){
+    $i = count($it_options) - 1;
+    while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] > $arrivalQuad[self::KEY_ARRIVAL_TIME] - self::TransferEquivalentTravelTime) {
+        $i--;
+    }
+}
         return $it_options[$i];
     }
 }

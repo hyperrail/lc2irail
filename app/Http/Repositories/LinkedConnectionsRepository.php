@@ -99,7 +99,6 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
     ): LinkedConnectionPage
     {
         $departureTime = $departureTime->copy();
-        $departureTime = $this->getRoundedDepartureTime($departureTime);
 
         $cacheKey = 'lc|getLinkedConnectionsInWindow|' . $departureTime->getTimestamp() . "|" . $window;
         if (Cache::has($cacheKey)) {
@@ -147,8 +146,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $prev = $windowPage->getPreviousPointer();
             }
             $next = $windowPage->getNextPointer();
-            Log:
-            info("Next pointer " . $next);
+            Log:info("Next pointer " . $next);
         }
 
         // Calculate a new etag based on the concatenation of all other etags
@@ -181,7 +179,6 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         int $results
     ): LinkedConnectionPage
     {
-        $departureTime = $this->getRoundedDepartureTime($departureTime);
 
         $cacheKey = 'lc|getConnectionsByLimit|' . $departureTime->getTimestamp() . "|" . $results;
         if (Cache::has($cacheKey)) {
@@ -293,9 +290,4 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         return $linkedConnectionsPage;
     }
 
-
-    private function getRoundedDepartureTime(Carbon $departureTime): Carbon
-    {
-        return $departureTime->subMinute($departureTime->minute % 10)->second(0);
-    }
 }

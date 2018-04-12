@@ -40,7 +40,9 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
     public function getRawLinkedConnections($pointer)
     {
-        if ($pointer instanceof Carbon) {
+        if (is_string($pointer)){
+            return $this->getRawLinkedConnectionsByString($pointer);
+        } elseif ( $pointer instanceof Carbon) {
             return $this->getRawLinkedConnectionsByDateTime($pointer);
         } else {
             throw new \InvalidArgumentException("Invalid argument type");
@@ -50,31 +52,43 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
     private function getRawLinkedConnectionsByDateTime(Carbon $departureTime)
     {
         $departureTime = $departureTime->copy();
-        $departureTime = $this->getRoundedDepartureTime($departureTime);
-        $pageCacheKey = 'lc|getRawLinkedConnections|' . $departureTime->getTimestamp();
+        $departureTime->setTimezone('UTC');
+        return $this->getRawLinkedConnectionsByString(date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld.gz');
+    }
+
+    private function getRawLinkedConnectionsByString(string $filename)
+    {
+        $pageCacheKey = 'lc|getRawLinkedConnections|' . $filename;
 
         if (Cache::has($pageCacheKey)) {
             return Cache::get($pageCacheKey);
         }
 
-        $departureTime->setTimezone('UTC');
         $scheduledBase = $this->BASE_DIRECTORY . '/linked_pages/' . $this->AGENCY;
         $realtimeBase = $this->BASE_DIRECTORY . '/real_time/' . $this->AGENCY;
 
-        $scheduledMostRecent = array_diff(scandir($scheduledBase, SCANDIR_SORT_DESCENDING), ['..', '.'])[0];
+        $mostRecentDataVersion = array_diff(scandir($scheduledBase, SCANDIR_SORT_DESCENDING), ['..', '.'])[0];
+        $scheduledDataFragments = array_diff(scandir($scheduledBase . '/' . $mostRecentDataVersion . '/', SCANDIR_SORT_ASCENDING), ['..', '.']);
+
+        $scheduledFilePath = $scheduledBase . '/' . $mostRecentDataVersion . '/' . $filename ;
+
+        $existingFiles = $this->binarySearchFirstSmallerThan($scheduledDataFragments, basename($scheduledFilePath));
+
+        $previous = $existingFiles[0];
+        $next = $existingFiles[2];
+
+        $scheduledFilePath = $scheduledBase . '/' . $mostRecentDataVersion . '/' . $existingFiles[1];
+
+        Log::info($scheduledFilePath . " is first smaller");
 
         // TODO: check if this behaviour is correct when there are multiple folders
         // TODO: what should be done while the generation is running (old complete data and new incomplete data available)
-        $scheduledDataCompressed = false; // Never compressed
-        $scheduledFilePath = $scheduledBase . '/' . $scheduledMostRecent . '/' . date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld';
-        if (!file_exists($scheduledFilePath)) {
-            $scheduledDataCompressed = true;
-            $scheduledFilePath .= ".gz";
-        }
+
 
         $realtimeDataCompressed = false;
         // Hacky date_format thingy to remove a leading zero in a month
-        $realtimeFilePath = $realtimeBase . '/' . date_format($departureTime, 'Y_') . (int)date_format($departureTime, 'm') . date_format($departureTime, '_d') . '/' . date_format($departureTime, 'Y-m-d\TH:i:s.000\Z') . '.jsonld';
+
+        $realtimeFilePath = $realtimeBase . '/' . $mostRecentDataVersion . '/' . 'dateprefix' . '/' . substr($filename,0,-3);
         if (!file_exists($realtimeFilePath)) {
             $realtimeDataCompressed = true;
             $realtimeFilePath .= ".gz";
@@ -95,17 +109,12 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         $departures = [];
         // Data which is more than 2 hours old can be cached for 1 hour
         // TODO: research exact time after which data never changes (and expiration can be set to one hour or longer)
-        if ($departureTime->lessThan(Carbon::now()->subMinutes(120))) {
-            $expiresAt = Carbon::now('UTC')->addHours(1);
-        } else {
-            $expiresAt = Carbon::now('UTC')->addSeconds(30);
-        }
+        $expiresAt = Carbon::now('UTC')->addSeconds(30);
 
         if (file_exists($scheduledFilePath)) {
             $data = file_get_contents($scheduledFilePath);
-            if ($scheduledDataCompressed) {
-                $data = gzdecode($data);
-            }
+            $data = gzdecode($data);
+
 
             foreach (json_decode('[' . $data . ']', true) as $key => $entry) {
                 if ($entry["gtfs:pickupType"] != "gtfs:Regular" || $entry["gtfs:dropOffType"] != "gtfs:Regular") {
@@ -134,8 +143,6 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
             }
         }
 
-        $next = $departureTime->copy()->addMinutes(self::PAGE_SIZE_MINUTES);
-        $previous = $departureTime->copy()->subMinutes(self::PAGE_SIZE_MINUTES);
 
         $raw = ['data' => array_values($departures), 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon('UTC'), 'next' => $next, 'previous' => $previous];
 
@@ -145,8 +152,59 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
     }
 
 
-    private function getRoundedDepartureTime(Carbon $departureTime): Carbon
+    /**
+     * @param array  $haystack Array sorted by ascending values
+     * @param string $needle The needle to search for
+     * @return string An array including the previous result, (The first smaller value, or the exact value), and the next result
+     */
+    private function binarySearchFirstSmallerThan(array $haystack, string $needle): array
     {
-        return $departureTime->subMinute($departureTime->minute % 10)->second(0);
+        $haystack = array_values($haystack);
+
+        $l = 0;
+        $length = count($haystack);
+        $r = $length;
+
+        // start in the middle
+        $position = (int) floor($r / 2);
+        Log::info("Searching $needle, start at $position");
+
+        $iterations = 0;
+        while ($position + 1 < $length && $l < $r && !($needle >= $haystack[$position] && $needle < $haystack[$position + 1])) {
+            if ($needle < $haystack[$position]) {
+                $r = $position;
+                Log::info("Limiting right to $position");
+            }
+            if ($needle > $haystack[$position + 1]) {
+                $l = $position + 1;
+                Log::info("Limiting left to " . ($position + 1));
+            }
+
+            //Log::info("Left {$haystack[$l]} Right {$haystack[$r]}");
+            $newposition = floor($l + ($r - $l) / 2);
+            if ($position == $newposition){
+                $position = $newposition + 1;
+            } else {
+                $position = $newposition;
+            }
+            $iterations++;
+        }
+
+        Log::info("Found " . $haystack[$position] . " in $iterations iterations");
+
+        $result = [];
+        if ($position > 0) {
+            $result[0] = $haystack[$position - 1];
+        } else {
+            $result[0] = null;
+        }
+
+        $result[1] = $haystack[$position];
+        if ($position > 0) {
+            $result[2] = $haystack[$position + 1];
+        } else {
+            $result[2] = null;
+        }
+        return $result;
     }
 }
