@@ -2,7 +2,7 @@
 An API, compliant to the original iRail API, based on linkedconnections.
 
 This project provides a lightweight API, based on the Lumen microframework. 
-It aims at providing an API for Belgian rail, backwards compatible with the original iRail api.
+It aims at providing an API for Belgian rail, similar to the original iRail api, but with more efficient data structures and caching
 
 ## Installation
 * Run composer install
@@ -11,27 +11,26 @@ It aims at providing an API for Belgian rail, backwards compatible with the orig
 
 ## Enpoints
 
-Endpoints for backwards compatibility are between brackets.
-Building new applications using backwards compatible endpoints is discouraged.
-The new endpoints are more consistent, and backwards compatibility might be dropped in the future.
-
-Time can be passed on as a standard time representation, for example ISO8601 or epoch timestamps.
+Time can be passed on as  ISO8601 timestamps.
 
 ### Liveboard by station id
 - liveboard/{id}
+- liveboard/{id}/{timestamp}
 
-Get a liveboard containing departures for a certain station. The ID is the 9 digit universal station ID, as used in iRail/Stations.
+Get a liveboard containing departures for a certain station. The ID is the 7 digit UIC ID, or the 9 digit HAFAS station ID
 
 ### Liveboard by station name
-- liveboard/{name} 
+- liveboard/{name}
+- liveboard/{name}/{timestamp}
 
 This enpoint provides similar functionality as the endpoint described above, however, 
 it allows searching stations by name.
 
 ### Vehicle
-- vehicle/{id}
-(- vehicle/BE.NMBS.{id})
-Where id is the name of the train, e.g. IC837.
+- vehicle/{id}/{yyyyMMdd}
+
+Where id is the name of the train, e.g. IC837, and yyyyMMdd is the year, month, day of departure for which the train should be retrieved
+
 
 ### Route
 - connections/{from}/{to}/departing/{timestamp}

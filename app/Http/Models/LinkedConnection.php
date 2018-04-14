@@ -12,20 +12,20 @@ use Carbon\Carbon;
 class LinkedConnection
 {
 
-    private $id;
+    public $id;
 
-    private $departureStopURI;
-    private $departureTime;
-    private $departureDelay;
+    public $departureStopURI;
+    public $departureTime;
+    public $departureDelay;
 
-    private $arrivalStopURI;
-    private $arrivalTime;
-    private $arrivalDelay;
+    public $arrivalStopURI;
+    public $arrivalTime;
+    public $arrivalDelay;
 
-    private $direction;
+    public $direction;
 
-    private $trip;
-    private $route;
+    public $trip;
+    public $route;
 
     public function __construct(
         string $id,

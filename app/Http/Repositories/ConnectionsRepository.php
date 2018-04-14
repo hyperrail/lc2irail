@@ -20,7 +20,7 @@ class ConnectionsRepository
     private const KEY_DEPARTURE_TIME = 'departure';
     private const KEY_ARRIVAL_TIME = 'arrival';
     private const KEY_DEPARTURE_CONNECTION = 'departure_connection';
-    private const KEY_ARRIVAL_CONNECTION = 'arrival_connections';
+    private const KEY_ARRIVAL_CONNECTION = 'arrival_connection';
     private const KEY_TRANSFER_COUNT = 'transfers';
 
     private const TIME_INFINITE = 2147483647;
@@ -37,10 +37,10 @@ class ConnectionsRepository
         $this->connectionsRepository = app(LinkedConnectionsRepository::class);
     }
 
-    public function getConnectionsByDepartureTime($origin, $destination, $departuretime, $language): ConnectionList
+    public function getConnectionsByDepartureTime($origin, $destination, $departuretime, $language, $results = 8): ConnectionList
     {
         // By not passing an arrival time, getConnections will determine set a good value to start scanning
-        return $this->getConnections($origin, $destination, $departuretime, null, 10, $_GET['results'], $language);
+        return $this->getConnections($origin, $destination, $departuretime, null, 10, $results, $language);
     }
 
     /**
@@ -50,9 +50,9 @@ class ConnectionsRepository
      * @param $language
      * @return ConnectionList
      */
-    public function getConnectionsByArrivalTime($origin, $destination, Carbon $arrivaltime, $language): ConnectionList
+    public function getConnectionsByArrivalTime($origin, $destination, Carbon $arrivaltime, $language, $results = 8): ConnectionList
     {
-        return $this->getConnections($origin, $destination, null, $arrivaltime, 10, $_GET['results'], $language);
+        return $this->getConnections($origin, $destination, null, $arrivaltime, 10, $results, $language);
     }
 
     public function getConnections($origin, $destination, Carbon $departureTime = null, Carbon $arrivaltime = null, $maxTransfers = 10, $resultCount = 8, $language = 'en')
@@ -321,6 +321,7 @@ class ConnectionsRepository
                     // We're updating an existing connection, with a way to get off earlier (iterating using descending departure times).
                     // This only modifies the transfer stop, nothing else in the journey
                     if ($Tmin == $T[$connection->getTrip()][self::KEY_ARRIVAL_TIME]
+                        && $T[$connection->getTrip()][self::KEY_ARRIVAL_CONNECTION]->getArrivalStopUri() != $destination
                         && $T3_transferArrivalTime == $T2_stayOnTripArrivalTime
                         && key_exists($T[$connection->getTrip()][self::KEY_ARRIVAL_CONNECTION]->getArrivalStopUri(), $S)
                         && key_exists($connection->getArrivalStopUri(), $S)
@@ -474,12 +475,12 @@ class ConnectionsRepository
         while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] != $arrivalQuad[self::KEY_ARRIVAL_TIME] - self::TransferEquivalentTravelTime) {
             $i--;
         }
-if ($i == -1){
-    $i = count($it_options) - 1;
-    while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] > $arrivalQuad[self::KEY_ARRIVAL_TIME] - self::TransferEquivalentTravelTime) {
-        $i--;
-    }
-}
+        if ($i == -1) {
+            $i = count($it_options) - 1;
+            while ($i >= 0 && $it_options[$i][self::KEY_ARRIVAL_TIME] > $arrivalQuad[self::KEY_ARRIVAL_TIME] - self::TransferEquivalentTravelTime) {
+                $i--;
+            }
+        }
         return $it_options[$i];
     }
 }

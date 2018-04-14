@@ -24,12 +24,28 @@ $router->group(['prefix' => '/liveboard'], function () use ($router) {
         ]
     );
 
+
+    $router->get('/{id:\d{7}}',
+        [
+            'as'   => 'liveboard.byUICNow',
+            'uses' => 'Api\LiveboardController@getLiveboardNow'
+        ]
+    );
+
     $router->get('/{id:\d{9}}/{timestamp}',
         [
             'as'   => 'liveboard.byId',
             'uses' => 'Api\LiveboardController@getLiveboard'
         ]
     );
+
+    $router->get('/{id:\d{7}}/{timestamp}',
+        [
+            'as'   => 'liveboard.byUIC',
+            'uses' => 'Api\LiveboardController@getLiveboard'
+        ]
+    );
+
     $router->get('/{station:[^0-9]+}/{timestamp}',
         [
             'as'   => 'liveboard.byName',

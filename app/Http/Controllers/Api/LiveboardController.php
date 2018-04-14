@@ -22,11 +22,20 @@ class LiveboardController extends Controller
 
     public function getLiveboardNow(HyperrailRequest $request, string $id)
     {
+        // UIC Id to Hafas ID
+        if (strlen($id) == 7) {
+            $id = "00" . $id;
+        }
         return redirect()->route('liveboard.byId', ['id' => $id, 'timestamp' => Carbon::now()->toAtomString()]);
     }
 
     public function getLiveboard(HyperrailRequest $request, string $id, $timestamp)
     {
+        // UIC Id to Hafas ID
+        if (strlen($id) == 7) {
+            $id = "00" . $id;
+        }
+
         // The size of the window (in seconds), for which data should be retrieved
         $window = $request->get('window', 3600);
         $language = $request->getLanguage();
