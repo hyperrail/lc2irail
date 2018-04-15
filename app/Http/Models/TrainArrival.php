@@ -3,7 +3,6 @@
 namespace App\Http\Models;
 
 use Carbon\Carbon;
-use irail\stations\Stations;
 
 /**
  * Class TrainDeparture
@@ -13,18 +12,40 @@ class TrainArrival extends TrainStopBase implements \JsonSerializable
 
     private $arrivalTime;
     private $arrivalDelay;
+    /**
+     * @var bool
+     */
+    private $isArrivalCanceled;
+    /**
+     * @var bool
+     */
+    private $hasArrived;
 
     public function __construct(
         string $uri,
+        string $platform,
+        bool $isPlatformNormal,
         Carbon $arrivalTime,
         int $arrivalDelay,
-        int $platform,
+        bool $isArrivalCanceled,
+        bool $hasArrived,
         VehicleStub $vehicle = null,
         Station $station = null
-    ) {
-        parent::__construct($uri,$platform,$vehicle, $station);
+    )
+    {
+        parent::__construct($uri, $platform, $isPlatformNormal, $vehicle, $station);
         $this->arrivalTime = $arrivalTime;
         $this->arrivalDelay = $arrivalDelay;
+        $this->isArrivalCanceled = $isArrivalCanceled;
+        $this->hasArrived = $hasArrived;
+    }
+
+    /**
+     * @return int
+     */
+    public function getArrivalDelay(): int
+    {
+        return $this->arrivalDelay;
     }
 
     /**
@@ -36,11 +57,19 @@ class TrainArrival extends TrainStopBase implements \JsonSerializable
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getArrivalDelay(): int
+    public function isArrivalCanceled(): bool
     {
-        return $this->arrivalDelay;
+        return $this->isArrivalCanceled;
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasArrived(): bool
+    {
+        return $this->hasArrived;
     }
 
     public function jsonSerialize()

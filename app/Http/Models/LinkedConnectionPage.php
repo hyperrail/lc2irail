@@ -32,18 +32,9 @@ class LinkedConnectionPage
      */
     private $expiresAt;
 
-    
+
     private $next;
     private $previous;
-
-    /**
-     * @return Carbon
-     */
-    public function getCreatedAt(): Carbon
-    {
-        return $this->createdAt;
-    }
-
 
     public function __construct(array $linkedConnections, Carbon $createdAt, Carbon $expiresAt, string $etag, $previous, $next)
     {
@@ -56,19 +47,19 @@ class LinkedConnectionPage
     }
 
     /**
+     * @return Carbon
+     */
+    public function getCreatedAt(): Carbon
+    {
+        return $this->createdAt;
+    }
+
+    /**
      * @return string
      */
     public function getEtag(): string
     {
         return $this->etag;
-    }
-
-    /**
-     * @return LinkedConnection[]
-     */
-    public function getLinkedConnections(): array
-    {
-        return $this->linkedConnections;
     }
 
     /**
@@ -88,11 +79,11 @@ class LinkedConnectionPage
     }
 
     /**
-     * @return mixed
+     * @return LinkedConnection[]
      */
-    public function getPreviousPointer()
+    public function getLinkedConnections(): array
     {
-        return $this->previous;
+        return $this->linkedConnections;
     }
 
     /**
@@ -101,6 +92,14 @@ class LinkedConnectionPage
     public function getNextPointer()
     {
         return $this->next;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getPreviousPointer()
+    {
+        return $this->previous;
     }
 
 }

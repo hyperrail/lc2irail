@@ -11,19 +11,40 @@ class TrainDeparture extends TrainStopBase implements \JsonSerializable
 {
     private $departureTime;
     private $departureDelay;
+    /**
+     * @var bool
+     */
+    private $isDepartureCanceled;
+    /**
+     * @var bool
+     */
+    private $hasDeparted;
 
     public function __construct(
         string $uri,
+        string $platform,
+        bool $isPlatformNormal,
         Carbon $departureTime,
         int $departureDelay,
-        int $platform,
+        bool $isDepartureCanceled,
+        bool $hasDeparted,
         VehicleStub $vehicle = null,
         Station $station = null
     )
     {
-        parent::__construct($uri, $platform, $vehicle, $station);
+        parent::__construct($uri, $platform, $isPlatformNormal, $vehicle, $station);
         $this->departureTime = $departureTime;
         $this->departureDelay = $departureDelay;
+        $this->isDepartureCanceled = $isDepartureCanceled;
+        $this->hasDeparted = $hasDeparted;
+    }
+
+    /**
+     * @return int
+     */
+    public function getDepartureDelay(): int
+    {
+        return $this->departureDelay;
     }
 
     /**
@@ -35,11 +56,19 @@ class TrainDeparture extends TrainStopBase implements \JsonSerializable
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getDepartureDelay(): int
+    public function isDepartureCanceled(): bool
     {
-        return $this->departureDelay;
+        return $this->isDepartureCanceled;
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasDeparted(): bool
+    {
+        return $this->hasDeparted;
     }
 
     public function jsonSerialize()

@@ -2,11 +2,11 @@
 
 namespace App\Http\Repositories;
 
+use App\Http\Models\LinkedConnection;
 use App\Http\Models\LinkedConnectionPage;
 use Cache;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
-use App\Http\Models\LinkedConnection;
 
 
 /**
@@ -103,7 +103,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
             $cacheKey = 'lc|getLinkedConnectionsInWindow|' . $pointer->getTimestamp() . '|' . $window;
             Log::info("Getting linked connectings in window with size $window for start at " . $pointer->toAtomString());
         } else {
-            $cacheKey = 'lc|getLinkedConnectionsInWindow|' . $pointer. '|' . $window;
+            $cacheKey = 'lc|getLinkedConnectionsInWindow|' . $pointer . '|' . $window;
             Log::info("Getting linked connectings in window with size $window for start at " . $pointer);
         }
 
@@ -152,11 +152,10 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $prev = $windowPage->getPreviousPointer();
             }
             $next = $windowPage->getNextPointer();
-            Log:
-            info("Next pointer " . $next);
+            Log::info("Next pointer " . $next);
         }
 
-        // Calculate a new etag based on the concatenation of all other etags
+        // Calculate a new etag based on the concatenation of al²l other etags
         $etag = md5($etag);
         /*
                 if (isset($previousResponse) && $etag == $previousResponse->getEtag()) {
@@ -168,10 +167,45 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 }
         */
         $combinedPage = new LinkedConnectionPage($departures, new Carbon('UTC'), $expiresAt, $etag, $prev, $next);
-
+        Log::info("Page contains " . count($departures) . " departures");
         Cache::put($cacheKey, $combinedPage, $expiresAt);
 
         return $combinedPage;
+    }
+
+    /**
+     * Retrieve an array of LinkedConnection objects for a certain departure time
+     *
+     * @param Carbon $departureTime
+     * @return \App\Http\Models\LinkedConnectionPage
+     */
+    public function getLinkedConnections($departureTime): LinkedConnectionPage
+    {
+        if ($departureTime instanceof Carbon) {
+            $cacheKey = 'lc|getLinkedConnections|' . $departureTime->getTimestamp();
+        } else {
+            $cacheKey = 'lc|getLinkedConnections|' . $departureTime;
+        }
+
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
+        $raw = $this->rawLinkedConnectionsSource->getRawLinkedConnections($departureTime);
+        $expiresAt = $raw['expiresAt'];
+        $etag = $raw['etag'];
+        $createdAt = $raw['createdAt'];
+
+        $linkedConnections = [];
+
+        foreach ($raw['data'] as $entry) {
+            $linkedConnections[] = new LinkedConnection($entry);
+        }
+        $linkedConnectionsPage = new LinkedConnectionPage($linkedConnections, $createdAt, $expiresAt, $etag, $raw['previous'], $raw['next']);
+
+        Cache::put($cacheKey, $linkedConnectionsPage, $expiresAt);
+
+        return $linkedConnectionsPage;
     }
 
     /**
@@ -237,64 +271,6 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         Cache::put($cacheKey, $combinedPage, 120);
 
         return $combinedPage;
-    }
-
-
-    /**
-     * Retrieve an array of LinkedConnection objects for a certain departure time
-     *
-     * @param Carbon $departureTime
-     * @return \App\Http\Models\LinkedConnectionPage
-     */
-    public
-    function getLinkedConnections($departureTime): LinkedConnectionPage
-    {
-        if ($departureTime instanceof Carbon) {
-            $cacheKey = 'lc|getLinkedConnections|' . $departureTime->getTimestamp();
-        } else {
-            $cacheKey = 'lc|getLinkedConnections|' . $departureTime;
-        }
-
-        if (Cache::has($cacheKey)) {
-            return Cache::get($cacheKey);
-        }
-
-        $raw = $this->rawLinkedConnectionsSource->getRawLinkedConnections($departureTime);
-        $expiresAt = $raw['expiresAt'];
-        $etag = $raw['etag'];
-        $createdAt = $raw['createdAt'];
-
-        $linkedConnections = [];
-
-        foreach ($raw['data'] as $entry) {
-            $arrivalDelay = key_exists('arrivalDelay', $entry) ? $entry['arrivalDelay'] : 0;
-            $departureDelay = key_exists('departureDelay', $entry) ? $entry['departureDelay'] : 0;
-
-            if (ends_with($departureDelay, "S")) {
-                $departureDelay = substr($departureDelay, 0, strlen($departureDelay) - 1);
-            }
-
-            if (ends_with($arrivalDelay, "S")) {
-                $arrivalDelay = substr($arrivalDelay, 0, strlen($arrivalDelay) - 1);
-            }
-
-            $linkedConnections[] = new LinkedConnection($entry['@id'],
-                $entry['departureStop'],
-                strtotime($entry['departureTime']),
-                $departureDelay,
-                $entry['arrivalStop'],
-                strtotime($entry['arrivalTime']),
-                $arrivalDelay,
-                $entry['direction'],
-                $entry['gtfs:trip'],
-                $entry['gtfs:route']
-            );
-        }
-        $linkedConnectionsPage = new LinkedConnectionPage($linkedConnections, $createdAt, $expiresAt, $etag, $raw['previous'], $raw['next']);
-
-        Cache::put($cacheKey, $linkedConnectionsPage, $expiresAt);
-
-        return $linkedConnectionsPage;
     }
 
 }

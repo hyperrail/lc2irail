@@ -2,8 +2,6 @@
 
 namespace App\Http\Models;
 
-use irail\stations\Stations;
-
 /**
  * Class Vehicle
  */
@@ -18,17 +16,19 @@ class VehicleStub implements \JsonSerializable
         string $uri,
         string $id,
         string $direction
-    ) {
+    )
+    {
         $this->uri = $uri;
         $this->id = $id;
         $this->direction = $direction;
     }
+
     /**
-     * @return string
+     * @return Station
      */
-    public function getUri(): string
+    public function getDirection(): string
     {
-        return $this->uri;
+        return $this->direction;
     }
 
     /**
@@ -40,11 +40,11 @@ class VehicleStub implements \JsonSerializable
     }
 
     /**
-     * @return Station
+     * @return string
      */
-    public function getDirection(): string
+    public function getUri(): string
     {
-        return $this->direction;
+        return $this->uri;
     }
 
     public function jsonSerialize()

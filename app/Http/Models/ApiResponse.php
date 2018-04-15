@@ -28,7 +28,8 @@ trait ApiResponse
         Carbon $createdAt,
         Carbon $expiresAt,
         string $etag
-    ) {
+    )
+    {
         $this->createdAt = $createdAt;
         $this->expiresAt = $expiresAt;
         $this->etag = $etag;
@@ -43,19 +44,19 @@ trait ApiResponse
     }
 
     /**
-     * @return Carbon
-     */
-    public function getExpiresAt(): Carbon
-    {
-        return $this->expiresAt;
-    }
-
-    /**
      * @return string
      */
     public function getEtag(): string
     {
         return $this->etag;
+    }
+
+    /**
+     * @return Carbon
+     */
+    public function getExpiresAt(): Carbon
+    {
+        return $this->expiresAt;
     }
 
 }

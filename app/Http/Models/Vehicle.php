@@ -22,12 +22,11 @@ class Vehicle extends VehicleStub implements \JsonSerializable
         Carbon $createdAt,
         Carbon $expiresAt,
         string $etag
-    ) {
+    )
+    {
         parent::__construct($uri, $id, $direction);
         $this->createApiResponse($createdAt, $expiresAt, $etag);
-
         $this->stops = $stops;
-
     }
 
     /**

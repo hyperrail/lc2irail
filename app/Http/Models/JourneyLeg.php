@@ -8,17 +8,17 @@ class JourneyLeg implements \JsonSerializable
 {
 
     /**
-     * @var string
+     * @var string The URI defining this departure stop
      */
-    private $departureConnection;
+    private $departureUri;
 
     /**
-     * @var string
+     * @var string The URI defining this arrival stop
      */
-    private $arrivalConnection;
+    private $arrivalUri;
 
     /**
-     * @var string
+     * @var string The Trip
      */
     private $trip;
 
@@ -49,85 +49,77 @@ class JourneyLeg implements \JsonSerializable
      */
     private $arrivalDelay;
     /**
+     * @var string
+     */
+    private $departurePlatform;
+    /**
+     * @var string
+     */
+    private $arrivalPlatform;
+
+    /**
      * @var \App\Http\Models\Station
      */
     private $departureStation;
+
     /**
      * @var \App\Http\Models\Station
      */
     private $arrivalStation;
 
-    public function __construct(\App\Http\Models\LinkedConnection $departureConnection, \App\Http\Models\LinkedConnection $arrivalConnection, $language)
+    /**
+     * @var bool
+     */
+    private $hasArrived;
+
+    /**
+     * @var bool
+     */
+    private $isArrivalCanceled;
+
+    /**
+     * @var bool
+     */
+    private $isArrivalPlatformNormal;
+
+    /**
+     * @var bool
+     */
+    private $hasLeft;
+
+    /**
+     * @var bool
+     */
+    private $isDepartureCanceled;
+
+    /**
+     * @var bool
+     */
+    private $isDeparturePlatformNormal;
+
+    public function __construct(LinkedConnection $departureConnection, LinkedConnection $arrivalConnection, $language)
     {
-        $this->departureConnection = $departureConnection->getId();
+        $this->departureUri = $departureConnection->getId();
         $this->departureStation = new Station($departureConnection->getDepartureStopUri(), $language);
         $this->departureTime = Carbon::createFromTimestamp($departureConnection->getDepartureTime());
         $this->departureDelay = $departureConnection->getDepartureDelay();
+        $this->departurePlatform = $departureConnection->getDeparturePlatform();
+        $this->isDeparturePlatformNormal = $departureConnection->isDeparturePlatformNormal();
+        $this->isDepartureCanceled = $departureConnection->isDepartureCanceled();
+        $this->hasLeft = $departureConnection->hasDeparted();
 
-        $this->arrivalConnection = $arrivalConnection->getId();
+        $this->arrivalUri = $arrivalConnection->getId();
         $this->arrivalStation = new Station($arrivalConnection->getArrivalStopUri(), $language);
         $this->arrivalTime = Carbon::createFromTimestamp($arrivalConnection->getArrivalTime());
         $this->arrivalDelay = $arrivalConnection->getArrivalDelay();
+        $this->arrivalPlatform = $arrivalConnection->getArrivalPlatform();
+        $this->isArrivalPlatformNormal = $arrivalConnection->isArrivalPlatformNormal();
+        $this->isArrivalCanceled = $arrivalConnection->isArrivalCanceled();
+        $this->hasArrived = $arrivalConnection->hasArrived();
 
         $this->trip = $departureConnection->getTrip();
         $this->route = $departureConnection->getRoute();
         $this->direction = $departureConnection->getDirection();
-    }
-
-    /**
-     * @return string
-     */
-    public function getDepartureConnection(): string
-    {
-        return $this->departureConnection;
-    }
-
-    /**
-     * @return string
-     */
-    public function getArrivalConnection(): string
-    {
-        return $this->arrivalConnection;
-    }
-
-    /**
-     * @return string
-     */
-    public function getTrip(): string
-    {
-        return $this->trip;
-    }
-
-    /**
-     * @return string
-     */
-    public function getRoute(): string
-    {
-        return $this->route;
-    }
-
-    /**
-     * @return \Carbon\Carbon
-     */
-    public function getDepartureTime(): \Carbon\Carbon
-    {
-        return $this->departureTime;
-    }
-
-    /**
-     * @return \Carbon\Carbon
-     */
-    public function getArrivalTime(): \Carbon\Carbon
-    {
-        return $this->arrivalTime;
-    }
-
-    /**
-     * @return int
-     */
-    public function getDepartureDelay(): int
-    {
-        return $this->departureDelay;
     }
 
     /**
@@ -139,11 +131,11 @@ class JourneyLeg implements \JsonSerializable
     }
 
     /**
-     * @return Station
+     * @return string
      */
-    public function getDepartureStation(): Station
+    public function getArrivalPlatform(): string
     {
-        return $this->departureStation;
+        return $this->arrivalPlatform;
     }
 
     /**
@@ -152,6 +144,78 @@ class JourneyLeg implements \JsonSerializable
     public function getArrivalStation(): Station
     {
         return $this->arrivalStation;
+    }
+
+    /**
+     * @return \Carbon\Carbon
+     */
+    public function getArrivalTime(): \Carbon\Carbon
+    {
+        return $this->arrivalTime;
+    }
+
+    /**
+     * @return string
+     */
+    public function getArrivalUri(): string
+    {
+        return $this->arrivalUri;
+    }
+
+    /**
+     * @return int
+     */
+    public function getDepartureDelay(): int
+    {
+        return $this->departureDelay;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDeparturePlatform(): string
+    {
+        return $this->departurePlatform;
+    }
+
+    /**
+     * @return Station
+     */
+    public function getDepartureStation(): Station
+    {
+        return $this->departureStation;
+    }
+
+    /**
+     * @return \Carbon\Carbon
+     */
+    public function getDepartureTime(): \Carbon\Carbon
+    {
+        return $this->departureTime;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDepartureUri(): string
+    {
+        return $this->departureUri;
+    }
+
+    /**
+     * @return string
+     */
+    public function getRoute(): string
+    {
+        return $this->route;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTrip(): string
+    {
+        return $this->trip;
     }
 
     /**

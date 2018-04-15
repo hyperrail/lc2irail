@@ -42,7 +42,7 @@ class ConnectionsController extends Controller
         $origin = new Station($origin, $language);
         $destination = new Station($destination, $language);
 
-        $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|" . $departureTime->getTimestamp() . "|" . $arrivalTime->getTimestamp() . "|" . $language;
+        $cacheKey = "lc2irail|connections|" . $origin->getHid() . "|" . $destination->getHid() . "|" . $departureTime->getTimestamp() . "|" . $arrivalTime->getTimestamp() . "|" . $language;
 
         if (Cache::has($cacheKey)) {
             $result = Cache::get($cacheKey);
@@ -96,7 +96,7 @@ class ConnectionsController extends Controller
         $origin = new Station($origin, $language);
         $destination = new Station($destination, $language);
 
-        $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|departure|" . $requestTime->getTimestamp() . "|" . $language;
+        $cacheKey = "lc2irail|connections|" . $origin->getHid() . "|" . $destination->getHid() . "|departure|" . $requestTime->getTimestamp() . "|" . $language;
 
         if (Cache::has($cacheKey)) {
             $result = Cache::get($cacheKey);
@@ -139,7 +139,7 @@ class ConnectionsController extends Controller
         $origin = new Station($origin, $language);
         $destination = new Station($destination, $language);
 
-        $cacheKey = "lc2irail|connections|" . $origin->getId() . "|" . $destination->getId() . "|arrival|" . $requestTime->getTimestamp() . "|" . $language;
+        $cacheKey = "lc2irail|connections|" . $origin->getHid() . "|" . $destination->getHid() . "|arrival|" . $requestTime->getTimestamp() . "|" . $language;
 
         if (Cache::has($cacheKey)) {
             $result = Cache::get($cacheKey);

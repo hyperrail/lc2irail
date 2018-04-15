@@ -26,7 +26,8 @@ class Liveboard implements \JsonSerializable
         Carbon $createdAt,
         Carbon $expiresAt,
         string $etag
-    ) {
+    )
+    {
         $this->createApiResponse($createdAt, $expiresAt, $etag);
         $this->station = $station;
         $this->departures = $departures;
@@ -36,11 +37,11 @@ class Liveboard implements \JsonSerializable
     }
 
     /**
-     * @return Station
+     * @return \App\Http\Models\TrainArrival[]
      */
-    public function getStation(): Station
+    public function getArrivals(): array
     {
-        return $this->station;
+        return $this->arrivals;
     }
 
     /**
@@ -52,19 +53,19 @@ class Liveboard implements \JsonSerializable
     }
 
     /**
+     * @return Station
+     */
+    public function getStation(): Station
+    {
+        return $this->station;
+    }
+
+    /**
      * @return \App\Http\Models\TrainStop[]
      */
     public function getStops(): array
     {
         return $this->stops;
-    }
-
-    /**
-     * @return \App\Http\Models\TrainArrival[]
-     */
-    public function getArrivals(): array
-    {
-        return $this->arrivals;
     }
 
     public function jsonSerialize()

@@ -2,6 +2,7 @@
 
 namespace App\Http\Repositories;
 
+use App\Http\Models\LinkedConnection;
 use App\Http\Models\Station;
 use App\Http\Models\TrainArrival;
 use App\Http\Models\TrainDeparture;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Log;
  *
  * @package App\Http\Controllers
  */
-class VehicleRepository implements  VehicleRepositoryContract
+class VehicleRepository implements VehicleRepositoryContract
 {
 
     public function getVehicle(string $id, string $date, string $language = ''): Vehicle
@@ -36,15 +37,16 @@ class VehicleRepository implements  VehicleRepositoryContract
         $direction = null;
         $vehicleName = null;
 
-        $prevArrivalTime = null;
-        $prevArrivalDelay = null;
-        $prevArrivalStop = null;
-
         $newestCreatedAt = null;
         $oldestExpiresAt = null;
         $etag = null;
 
         $hoursWithoutStop = 0;
+
+        /**
+         * @var $previousConnection LinkedConnection
+         */
+        $previousConnection = null;
 
         while ((count($stops) == 0 || $hoursWithoutStop < 2) && $hoursWithoutStop < 24) {
 
@@ -75,35 +77,36 @@ class VehicleRepository implements  VehicleRepositoryContract
                     continue;
                 }
 
-                if (count($stops) == 0) {
+                if (count($stops) === 0) {
                     $stops[] = new TrainDeparture(
-                        $connection->getId(),
+                        $connection->getId(), $connection->getDeparturePlatform(), true,
                         Carbon::createFromTimestamp($connection->getDepartureTime(), "Europe/Brussels"),
-                        $connection->getDepartureDelay(), 0, null,
+                        $connection->getDepartureDelay(), $connection->isDepartureCanceled(), $connection->hasDeparted(), null,
                         new Station($connection->getDepartureStopUri(), $language)
                     );
 
                     $direction = $connection->getDirection();
                     $vehicleName = $connection->getRoute();
-
                 } else {
                     $stops[] = new TrainStop(
                         $connection->getId(),
-                        0,
-                        Carbon::createFromTimestamp($prevArrivalTime, "Europe/Brussels"),
-                        $prevArrivalDelay,
+                        $connection->getDeparturePlatform(),
+                        true,
+                        Carbon::createFromTimestamp($previousConnection->getArrivalTime(), "Europe/Brussels"),
+                        $previousConnection->getArrivalDelay(),
+                        $previousConnection->isArrivalCanceled(),
+                        $previousConnection->hasArrived(),
                         Carbon::createFromTimestamp($connection->getDepartureTime(), "Europe/Brussels"),
                         $connection->getDepartureDelay(),
+                        $connection->isDepartureCanceled(),
+                        $connection->hasDeparted(),
                         null,
                         new Station($connection->getDepartureStopUri(), $language)
                     );
                 }
+
                 Log::info("Found relevant connection " . $connection->getId());
-
-                $prevArrivalDelay = $connection->getArrivalDelay();
-                $prevArrivalTime = $connection->getArrivalTime();
-                $prevArrivalStop = $connection->getArrivalStopUri();
-
+                $previousConnection = $connection;
                 $hoursWithoutStop = 0;
             }
 
@@ -116,12 +119,15 @@ class VehicleRepository implements  VehicleRepositoryContract
         }
 
         $stops[] = new TrainArrival(
-            "arrival",
-            Carbon::createFromTimestamp($prevArrivalTime, "Europe/Brussels"),
-            $prevArrivalDelay,
-            0,
+            $previousConnection->getArrivalStopUri(),
+            $previousConnection->getArrivalPlatform(),
+            $previousConnection->isArrivalPlatformNormal(),
+            Carbon::createFromTimestamp($previousConnection->getArrivalTime(), "Europe/Brussels"),
+            $previousConnection->getArrivalDelay(),
+            $previousConnection->isArrivalCanceled(),
+            $previousConnection->hasArrived(),
             null,
-            new Station($prevArrivalStop, $language)
+            new Station($previousConnection->getArrivalStopUri(), $language)
         );
 
         return new Vehicle($trip, $vehicleName, $direction, $stops, $newestCreatedAt,

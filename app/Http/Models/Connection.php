@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Models;
+
 use Carbon\Carbon;
 
 /**
@@ -24,6 +25,22 @@ class Connection implements \JsonSerializable
     }
 
     /**
+     * @return mixed
+     */
+    public function getArrivalTime(): Carbon
+    {
+        return $this->arrivalTime;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getDepartureTime(): Carbon
+    {
+        return $this->departureTime;
+    }
+
+    /**
      * @return array
      */
     public function getLegs(): array
@@ -44,21 +61,5 @@ class Connection implements \JsonSerializable
         $vars['departureTime'] = $this->departureTime->toAtomString();
         $vars['arrivalTime'] = $this->arrivalTime->toAtomString();
         return $vars;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getArrivalTime(): Carbon
-    {
-        return $this->arrivalTime;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getDepartureTime() : Carbon
-    {
-        return $this->departureTime;
     }
 }

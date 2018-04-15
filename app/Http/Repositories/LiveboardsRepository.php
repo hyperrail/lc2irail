@@ -3,16 +3,13 @@
 namespace App\Http\Repositories;
 
 use App\Http\Models\IrailCarbon;
-use App\Http\Models\LinkedConnection;
 use App\Http\Models\Liveboard;
 use App\Http\Models\Station;
 use App\Http\Models\TrainArrival;
 use App\Http\Models\TrainDeparture;
 use App\Http\Models\TrainStop;
-use App\Http\Models\Vehicle;
 use App\Http\Models\VehicleStub;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Class LinkedConnectionsRepositories
@@ -72,8 +69,10 @@ class LiveboardsRepository implements LiveboardsRepositoryContract
             if ($connection->getDepartureStopUri() == $stationUri) {
                 $departures[] = new TrainDeparture(
                     $connection->getId(),
+                    $connection->getDeparturePlatform(),
+                    $connection->isDeparturePlatformNormal(),
                     Carbon::createFromTimestamp($connection->getDepartureTime(), "Europe/Brussels"),
-                    $connection->getDepartureDelay(), 0, new VehicleStub(
+                    $connection->getDepartureDelay(), $connection->isDepartureCanceled(), $connection->hasDeparted(), new VehicleStub(
                         $connection->getTrip(),
                         $connection->getRoute(),
                         $connection->getDirection()
@@ -84,8 +83,8 @@ class LiveboardsRepository implements LiveboardsRepositoryContract
             }
             if ($connection->getArrivalStopUri() == $stationUri) {
                 $arrivals[] = new TrainArrival(
-                    $connection->getId(), Carbon::createFromTimestamp($connection->getArrivalTime(), "Europe/Brussels"),
-                    $connection->getArrivalDelay(), 0, new VehicleStub(
+                    $connection->getId(), $connection->getArrivalPlatform(), $connection->isArrivalPlatformNormal(), Carbon::createFromTimestamp($connection->getArrivalTime(), "Europe/Brussels"),
+                    $connection->getArrivalDelay(), $connection->isArrivalCanceled(), $connection->hasArrived(), new VehicleStub(
                         $connection->getTrip(),
                         $connection->getRoute(),
                         $connection->getDirection()
@@ -110,10 +109,15 @@ class LiveboardsRepository implements LiveboardsRepositoryContract
                 if ($departures[$i]->getVehicle()->getId() == $arrivingTrip) {
                     $stops[] = new TrainStop($departures[$i]->getUri(),
                         $departures[$i]->getPlatform(),
+                        $departures[$i]->isPlatformNormal(),
                         $arrival->getArrivalTime(),
                         $arrival->getArrivalDelay(),
+                        $arrival->isArrivalCanceled(),
+                        $arrival->hasArrived(),
                         $departures[$i]->getDepartureTime(),
                         $departures[$i]->getDepartureDelay(),
+                        $departures[$i]->isDepartureCanceled(),
+                        $departures[$i]->hasDeparted(),
                         $departures[$i]->getVehicle());
 
                     $wipeArrivalIds[] = $id;
@@ -131,9 +135,9 @@ class LiveboardsRepository implements LiveboardsRepositoryContract
             unset ($arrivals[$id]);
         }
 
-        $departures= array_values($departures);
-        $stops= array_values($stops);
-        $arrivals= array_values($arrivals);
+        $departures = array_values($departures);
+        $stops = array_values($stops);
+        $arrivals = array_values($arrivals);
 
         //Log::info("Got " . sizeof($departures) . " relevant departures");
 

@@ -9,9 +9,10 @@ use irail\stations\Stations;
  */
 class Station implements \JsonSerializable
 {
-    private $id;
-
+    private $hid;
+    private $uicCode;
     private $uri;
+
     private $defaultName;
     private $localizedName;
 
@@ -24,23 +25,25 @@ class Station implements \JsonSerializable
     /**
      * Station constructor.
      *
-     * @param string $id   The 9 digit HAFAS ID for this station, or the URI.
+     * @param string $id The 9 digit HAFAS ID for this station, or the URI.
      * @param string $lang The language for localized name. Empty if localization isn't required.
      */
     public function __construct(
         string $id,
         string $lang = ''
-    ) {
+    )
+    {
         $iRailStation = Stations::getStationFromID($id);
-        if ($iRailStation == null){
+        if ($iRailStation == null) {
             abort(404);
         }
         $this->uri = $iRailStation->{'@id'};
-        $this->id = 'BE.NMBS.' . basename($this->uri);
+        $this->hid = basename($this->uri);
+        $this->uicCode = substr($this->hid, 2);
         $this->defaultName = $iRailStation->name;
 
         $this->localizedName = $this->defaultName;
-        if ($lang != '' && property_exists($iRailStation,'alternative')) {
+        if ($lang != '' && property_exists($iRailStation, 'alternative')) {
             foreach ($iRailStation->alternative as $alternative) {
                 if ($alternative->{'@language'} == $lang) {
                     $this->localizedName = $alternative->{'@value'};
@@ -74,36 +77,6 @@ class Station implements \JsonSerializable
         }
     }
 
-    public function getUri(): string
-    {
-        return $this->uri;
-    }
-
-    public function getId(): string
-    {
-        return $this->id;
-    }
-
-    public function getDefaultName(): string
-    {
-        return $this->defaultName;
-    }
-
-    public function getLocalizedName(): string
-    {
-        return $this->localizedName;
-    }
-
-    public function getLatitude(): double
-    {
-        return $this->latitude;
-    }
-
-    public function getLongitude(): double
-    {
-        return $this->longitude;
-    }
-
     public function getCountryCode(): string
     {
         return $this->countryCode;
@@ -112,6 +85,41 @@ class Station implements \JsonSerializable
     public function getCountryURI(): string
     {
         return $this->countryURI;
+    }
+
+    public function getDefaultName(): string
+    {
+        return $this->defaultName;
+    }
+
+    public function getHid(): string
+    {
+        return $this->hid;
+    }
+
+    public function getLatitude(): double
+    {
+        return $this->latitude;
+    }
+
+    public function getLocalizedName(): string
+    {
+        return $this->localizedName;
+    }
+
+    public function getLongitude(): double
+    {
+        return $this->longitude;
+    }
+
+    public function getUicCode(): string
+    {
+        return $this->uicCode;
+    }
+
+    public function getUri(): string
+    {
+        return $this->uri;
     }
 
     public function jsonSerialize()

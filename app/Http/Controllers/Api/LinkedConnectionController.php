@@ -40,7 +40,7 @@ class LinkedConnectionController extends Controller
         $vehicle = $repository->getVehicle($vehicle, $date, $request->getLanguage());
         $stops = $vehicle->getStops();
         foreach ($stops as $trainstop) {
-            if ($trainstop->getStation()->getId() == "BE.NMBS.00" . $stop) {
+            if ($trainstop->getStation()->getHid() == $stop) {
                 return response()->json($trainstop, 200)->withHeaders([
                     'Expires' => $vehicle->getExpiresAt()->format('D, d M Y H:i:s e'),
                     'Cache-Control' => 'Public, max-age=' . $vehicle->getExpiresAt()->diffInSeconds(new Carbon()),
