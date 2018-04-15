@@ -126,7 +126,7 @@ class LinkedConnectionsWebRepository implements LinkedConnectionsRawRepositoryCo
             } else {
                 $json = json_decode($data, true);
 
-                $raw = ['data' => $json['@graph'], 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon(), 'next' => $json['hydra:next'], 'previous' => $json['hydra:previous']];
+                $raw = ['data' => $json['@graph'], 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon(), 'next' => $json['hydra:next'], 'id' => $json['@id'], 'previous' => $json['hydra:previous']];
 
                 Cache::put($pageCacheKey, $raw, $expiresAt);
             }

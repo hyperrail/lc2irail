@@ -20,11 +20,12 @@ interface LiveboardsRepositoryContract
      * Retrieve an array of LinkedConnection objects for a certain departure time
      *
      * @param \App\Http\Models\Station $station
-     * @param Carbon                   $departureTime The time for which departures should be returned
+     * @param Carbon                   $queryTime The time for which departures should be returned
      * @param string                   $language
      * @param int                      $window
      * @return \App\Http\Models\Liveboard
      */
-    public function getDepartures(Station $station, Carbon $departureTime, string $language = '', int $window = 3600): Liveboard;
+    public function getLiveboard(Station $station, Carbon $queryTime, string $language = '', int $window = 3600): Liveboard;
+    public function getLiveboardBefore(Station $station, Carbon $queryTime, string $language = '', int $window = 3600): Liveboard;
 
 }

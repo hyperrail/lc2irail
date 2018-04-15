@@ -11,6 +11,7 @@ use Carbon\Carbon;
 class ConnectionList implements \JsonSerializable
 {
     use ApiResponse;
+    use Browseable;
 
     /**
      * @var Station
@@ -34,10 +35,14 @@ class ConnectionList implements \JsonSerializable
                                 array $connections,
                                 Carbon $createdAt,
                                 Carbon $expiresAt,
-                                string $etag
+                                string $etag,
+                                string $previous,
+                                string $current,
+                                string $next
     )
     {
         $this->createApiResponse($createdAt, $expiresAt, $etag);
+        $this->createBrowseable($previous, $current, $next);
         $this->departureStation = $origin;
         $this->destination = $destination;
         $this->connections = $connections;

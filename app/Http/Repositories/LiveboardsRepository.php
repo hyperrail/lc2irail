@@ -24,14 +24,14 @@ class LiveboardsRepository implements LiveboardsRepositoryContract
      * Retrieve an array of LinkedConnection objects for a certain departure time
      *
      * @param \App\Http\Models\Station $station
-     * @param Carbon                   $departureTime The time for which departures should be returned
+     * @param Carbon                   $queryTime The time for which departures should be returned
      * @param string                   $language
      * @param int                      $window
      * @return \App\Http\Models\Liveboard
      */
-    public function getDepartures(
+    public function getLiveboard(
         Station $station,
-        Carbon $departureTime,
+        Carbon $queryTime,
         string $language = '',
         int $window = 3600
     ): Liveboard
@@ -42,7 +42,17 @@ class LiveboardsRepository implements LiveboardsRepositoryContract
         /**
          * @var $linkedConnectionsData \App\Http\Models\LinkedConnectionPage
          */
-        $linkedConnectionsData = $repository->getLinkedConnectionsInWindow($departureTime, $window);
+        $linkedConnectionsData = $repository->getLinkedConnectionsInWindow($queryTime, $window);
+        return $this->getLiveboardData($station, $linkedConnectionsData, "liveboard.byId");
+    }
+
+    /**
+     * @param Station $station
+     * @param         $linkedConnectionsData
+     * @return Liveboard
+     */
+    private function getLiveboardData(Station $station, $linkedConnectionsData, $route): Liveboard
+    {
         $linkedConnections = $linkedConnectionsData->getLinkedConnections();
         //Log::info("Got " . sizeof($linkedConnections) . " departures");
 
@@ -96,6 +106,36 @@ class LiveboardsRepository implements LiveboardsRepositoryContract
             }
         }
 
+        $this->extractStops($arrivals, $departures, $stops, $numberOfDepartures, $departureIdAfterThisArrival);
+
+        //Log::info("Got " . sizeof($departures) . " relevant departures");
+        if (starts_with($linkedConnectionsData->getNextPointer(), "http")) {
+            $prev = substr($linkedConnectionsData->getPreviousPointer(), strpos($linkedConnectionsData->getPreviousPointer(), "="));
+            $next = substr($linkedConnectionsData->getNextPointer(), strpos($linkedConnectionsData->getNextPointer(), "="));
+            $current = substr($linkedConnectionsData->getCurrentPointer(), strpos($linkedConnectionsData->getCurrentPointer(), "="));
+        } else {
+            $prev = substr($linkedConnectionsData->getPreviousPointer(), 0, -10);
+            $next = substr($linkedConnectionsData->getNextPointer(), 0, -10);
+            $current = substr($linkedConnectionsData->getCurrentPointer(), 0, -10);
+        }
+
+        $prev = route($route, ['timestamp' => $prev, 'id' => $station->getHid()]);
+        $next = route($route, ['timestamp' => $next, 'id' => $station->getHid()]);
+        $current = route($route, ['timestamp' => $current, 'id' => $station->getHid()]);
+
+        return new Liveboard($station, $departures, $stops, $arrivals, $linkedConnectionsData->getCreatedAt(),
+            $linkedConnectionsData->getExpiresAt(), $linkedConnectionsData->getEtag(), $prev, $current, $next);
+    }
+
+    /**
+     * @param $arrivals
+     * @param $departures
+     * @param $stops
+     * @param $numberOfDepartures
+     * @param $departureIdAfterThisArrival
+     */
+    public function extractStops(&$arrivals, &$departures, &$stops, $numberOfDepartures, $departureIdAfterThisArrival): void
+    {
         $wipeArrivalIds = [];
         $wipeDepartureIds = [];
 
@@ -138,10 +178,32 @@ class LiveboardsRepository implements LiveboardsRepositoryContract
         $departures = array_values($departures);
         $stops = array_values($stops);
         $arrivals = array_values($arrivals);
+    }
 
-        //Log::info("Got " . sizeof($departures) . " relevant departures");
+    /**
+     * Retrieve an array of LinkedConnection objects for a certain departure time
+     *
+     * @param \App\Http\Models\Station $station
+     * @param Carbon                   $queryTime The time for which departures should be returned
+     * @param string                   $language
+     * @param int                      $window
+     * @return \App\Http\Models\Liveboard
+     */
+    public function getLiveboardBefore(
+        Station $station,
+        Carbon $queryTime,
+        string $language = '',
+        int $window = 3600
+    ): Liveboard
+    {
 
-        return new Liveboard($station, $departures, $stops, $arrivals, $linkedConnectionsData->getCreatedAt(),
-            $linkedConnectionsData->getExpiresAt(), $linkedConnectionsData->getEtag());
+        $repository = app(LinkedConnectionsRepositoryContract::class);
+
+        /**
+         * @var $linkedConnectionsData \App\Http\Models\LinkedConnectionPage
+         */
+        $queryTime = $queryTime->copy()->subSeconds($window);
+        $linkedConnectionsData = $repository->getLinkedConnectionsInWindow($queryTime, $window);
+        return $this->getLiveboardData($station, $linkedConnectionsData, "liveboard.byIdBefore");
     }
 }

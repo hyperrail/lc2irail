@@ -75,6 +75,7 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         $existingFiles = $this->binarySearchFirstSmallerThan($scheduledDataFragments, basename($scheduledFilePath));
 
         $previous = $existingFiles[0];
+        $current = $existingFiles[1];
         $next = $existingFiles[2];
 
         $scheduledFilePath = $scheduledBase . '/' . $mostRecentDataVersion . '/' . $existingFiles[1];
@@ -144,7 +145,7 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         }
 
 
-        $raw = ['data' => array_values($departures), 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon('UTC'), 'next' => $next, 'previous' => $previous];
+        $raw = ['data' => array_values($departures), 'etag' => $etag, 'expiresAt' => $expiresAt, 'createdAt' => new Carbon('UTC'), 'next' => $next, 'id' => $current, 'previous' => $previous];
 
         Cache::put($pageCacheKey, $raw, $expiresAt);
 

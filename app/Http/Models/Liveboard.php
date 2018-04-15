@@ -11,6 +11,8 @@ use Carbon\Carbon;
 class Liveboard implements \JsonSerializable
 {
     use ApiResponse;
+    use Browseable;
+
     private $station;
     private $departures;
 
@@ -25,10 +27,14 @@ class Liveboard implements \JsonSerializable
         array $arrivals,
         Carbon $createdAt,
         Carbon $expiresAt,
-        string $etag
+        string $etag,
+        string $previous,
+        string $current,
+        string $next
     )
     {
         $this->createApiResponse($createdAt, $expiresAt, $etag);
+        $this->createBrowseable($previous, $current, $next);
         $this->station = $station;
         $this->departures = $departures;
         $this->stops = $stops;

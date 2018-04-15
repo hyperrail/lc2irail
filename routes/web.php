@@ -17,6 +17,13 @@ $router->get('/', function () use ($router) {
 
 $router->group(['prefix' => '/liveboard'], function () use ($router) {
 
+    $router->get('/{id:\d{7}}',
+        [
+            'as'   => 'liveboard.byUICNow',
+            'uses' => 'Api\LiveboardController@getLiveboardByUICNow'
+        ]
+    );
+
     $router->get('/{id:\d{9}}',
         [
             'as'   => 'liveboard.byIdNow',
@@ -24,38 +31,52 @@ $router->group(['prefix' => '/liveboard'], function () use ($router) {
         ]
     );
 
-
-    $router->get('/{id:\d{7}}',
+    $router->get('/{station:[^0-9]+}',
         [
-            'as'   => 'liveboard.byUICNow',
-            'uses' => 'Api\LiveboardController@getLiveboardNow'
+            'as'   => 'liveboard.byNameNow',
+            'uses' => 'Api\LiveboardController@getLiveboardByNameNow'
         ]
     );
 
-    $router->get('/{id:\d{9}}/{timestamp}',
+    $router->get('/{id:\d{7}}/after/{timestamp}',
+        [
+            'as'   => 'liveboard.byUIC',
+            'uses' => 'Api\LiveboardController@getLiveboardByUIC'
+        ]
+    );
+
+    $router->get('/{id:\d{9}}/after/{timestamp}',
         [
             'as'   => 'liveboard.byId',
             'uses' => 'Api\LiveboardController@getLiveboard'
         ]
     );
 
-    $router->get('/{id:\d{7}}/{timestamp}',
-        [
-            'as'   => 'liveboard.byUIC',
-            'uses' => 'Api\LiveboardController@getLiveboard'
-        ]
-    );
-
-    $router->get('/{station:[^0-9]+}/{timestamp}',
+    $router->get('/{station:[^0-9]+}/after/{timestamp}',
         [
             'as'   => 'liveboard.byName',
             'uses' => 'Api\LiveboardController@getLiveboardByName'
         ]
     );
-    $router->get('/{station:[^0-9]+}',
+
+    $router->get('/{id:\d{7}}/before/{timestamp}',
         [
-            'as'   => 'liveboard.byNameNow',
-            'uses' => 'Api\LiveboardController@getLiveboardByNameNow'
+            'as'   => 'liveboard.byUICBefore',
+            'uses' => 'Api\LiveboardController@getLiveboardByUICBefore'
+        ]
+    );
+
+    $router->get('/{id:\d{9}}/before/{timestamp}',
+        [
+            'as'   => 'liveboard.byIdBefore',
+            'uses' => 'Api\LiveboardController@getLiveboardBefore'
+        ]
+    );
+
+    $router->get('/{station:[^0-9]+}/before/{timestamp}',
+        [
+            'as'   => 'liveboard.byNamebefore',
+            'uses' => 'Api\LiveboardController@getLiveboardByNameBefore'
         ]
     );
 });

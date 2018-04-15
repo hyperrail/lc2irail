@@ -34,15 +34,17 @@ class LinkedConnectionPage
 
 
     private $next;
+    private $current;
     private $previous;
 
-    public function __construct(array $linkedConnections, Carbon $createdAt, Carbon $expiresAt, string $etag, $previous, $next)
+    public function __construct(array $linkedConnections, Carbon $createdAt, Carbon $expiresAt, string $etag, $previous, $current, $next)
     {
         $this->linkedConnections = $linkedConnections;
         $this->etag = $etag;
         $this->createdAt = $createdAt;
         $this->expiresAt = $expiresAt;
         $this->previous = $previous;
+        $this->current = $current;
         $this->next = $next;
     }
 
@@ -92,6 +94,14 @@ class LinkedConnectionPage
     public function getNextPointer()
     {
         return $this->next;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getCurrentPointer()
+    {
+        return $this->current;
     }
 
     /**

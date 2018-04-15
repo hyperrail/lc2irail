@@ -121,6 +121,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         $etag = "";
         $expiresAt = null;
         $prev = null;
+        $current = null;
         $next = null;
 
         // Compare by timestamps as departure times are also stored as timestamps
@@ -150,6 +151,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
             // Update variables to keep the prev and next pointers for our "larger" page
             if ($prev == null) {
                 $prev = $windowPage->getPreviousPointer();
+                $current = $windowPage->getCurrentPointer();
             }
             $next = $windowPage->getNextPointer();
             Log::info("Next pointer " . $next);
@@ -166,7 +168,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                     return $previousResponse;
                 }
         */
-        $combinedPage = new LinkedConnectionPage($departures, new Carbon('UTC'), $expiresAt, $etag, $prev, $next);
+        $combinedPage = new LinkedConnectionPage($departures, new Carbon('UTC'), $expiresAt, $etag, $prev, $current, $next);
         Log::info("Page contains " . count($departures) . " departures");
         Cache::put($cacheKey, $combinedPage, $expiresAt);
 
@@ -201,7 +203,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         foreach ($raw['data'] as $entry) {
             $linkedConnections[] = new LinkedConnection($entry);
         }
-        $linkedConnectionsPage = new LinkedConnectionPage($linkedConnections, $createdAt, $expiresAt, $etag, $raw['previous'], $raw['next']);
+        $linkedConnectionsPage = new LinkedConnectionPage($linkedConnections, $createdAt, $expiresAt, $etag, $raw['previous'], $raw['id'], $raw['next']);
 
         Cache::put($cacheKey, $linkedConnectionsPage, $expiresAt);
 
@@ -214,8 +216,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      * @param int            $results The number of linked connections to retrieve
      * @return \App\Http\Models\LinkedConnectionPage A linkedConnections page containing all results
      */
-    public
-    function getConnectionsByLimit(
+    public    function getConnectionsByLimit(
         Carbon $departureTime,
         int $results
     ): LinkedConnectionPage
@@ -237,7 +238,9 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         $departures = [];
         $etag = "";
         $expiresAt = null;
+
         $prev = null;
+        $current = null;
         $next = null;
 
         while ($results < count($departures)) {
@@ -254,6 +257,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
             if ($prev == null) {
                 $prev = $windowPage->getPreviousPointer();
+                $current = $windowPage->getCurrentPointer();
             }
             $next = $windowPage->getNextPointer();
         }
@@ -266,7 +270,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
             return $previousResponse;
         }
 
-        $combinedPage = new LinkedConnectionPage($departures, new Carbon('UTC'), $expiresAt, $etag, $prev, $next);
+        $combinedPage = new LinkedConnectionPage($departures, new Carbon('UTC'), $expiresAt, $etag, $prev, $current, $next);
 
         Cache::put($cacheKey, $combinedPage, 120);
 

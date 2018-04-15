@@ -7,7 +7,6 @@ use App\Http\Models\ConnectionList;
 use App\Http\Models\JourneyLeg;
 use App\Http\Models\Station;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Class ConnectionsRepository
@@ -23,7 +22,6 @@ class ConnectionsRepository
     private const KEY_ARRIVAL_CONNECTION = 'arrival_connection';
     private const KEY_TRANSFER_COUNT = 'transfers';
 
-    private const TIME_INFINITE = 2147483647;
     const TransferEquivalentTravelTime = 240;
     const IntraStopFootpathTime = 300;
 
@@ -43,18 +41,6 @@ class ConnectionsRepository
         return $this->getConnections($origin, $destination, $departuretime, null, 10, $results, $language);
     }
 
-    /**
-     * @param $origin
-     * @param $destination
-     * @param $arrivaltime Carbon the latest arrival time
-     * @param $language
-     * @return ConnectionList
-     */
-    public function getConnectionsByArrivalTime($origin, $destination, Carbon $arrivaltime, $language, $results = 8): ConnectionList
-    {
-        return $this->getConnections($origin, $destination, null, $arrivaltime, 10, $results, $language);
-    }
-
     public function getConnections($origin, $destination, Carbon $departureTime = null, Carbon $arrivaltime = null, $maxTransfers = 10, $resultCount = 8, $language = 'en')
     {
         if ($arrivaltime == null) {
@@ -68,6 +54,10 @@ class ConnectionsRepository
         $expiresAt = null;
         $etag = "";
 
+        $previousPointer = null;
+        $currentPointer = null;
+        $nextPointer = null;
+
         // Make a copy so we won't adjust the original variable in the calling code
         $pointer = $arrivaltime->copy();
 
@@ -78,9 +68,6 @@ class ConnectionsRepository
         // See `Connection Scan Algorithm, March 20147, §4.1-4.2
 
         // In the following code, `2147483647` will be used to signal a point, infinitely far in time
-        // TODO: This code will change behaviour when nearing Tuesday 19 January 2038 03:14:07 GMT.
-        // TODO: increase this number round 2036. Increasing this number will mean PHP will interpret it as float instead of int.
-
         // Times are stored as timestamps (int)
 
         // For each stop, keep an array of (departuretime, arrivaltime) pairs
@@ -118,6 +105,12 @@ class ConnectionsRepository
             // Initially we'll start with connections for the hour before the arrival time.
             // Don't adjust the original arrival time, we'll need it later
             $connectionsPage = $this->connectionsRepository->getLinkedConnections($pointer);
+
+            if ($nextPointer == null) {
+                $nextPointer = $connectionsPage->getNextPointer();
+            }
+            $currentPointer = $connectionsPage->getCurrentPointer();
+            $previousPointer = $connectionsPage->getPreviousPointer();
 
             // We will loop over the pages in descending order
             $pointer = $connectionsPage->getPreviousPointer();
@@ -179,7 +172,7 @@ class ConnectionsRepository
                     // For stops which are close to each other, we could walk to another stop to take a train there
                     // This is to be supported later on, but requires a list of footpaths.
                     // TODO: support walking to a nearby stop, e.g. haren/haren-zuid
-                    $T1_walkingArrivalTime = self::TIME_INFINITE;
+                    $T1_walkingArrivalTime = INF;
                     // Default value to prevent errors due to undefined variables.
                     // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
                     $T1_transfers = false;
@@ -197,7 +190,7 @@ class ConnectionsRepository
                     // When there isn't a fastest arrival time for this stop yet, it means we haven't found a connection
                     // - To arrive in the destination using this vehicle, or
                     // - To transfer to another vehicle in another station
-                    $T2_stayOnTripArrivalTime = self::TIME_INFINITE;
+                    $T2_stayOnTripArrivalTime = INF;
                     // Default value to prevent errors due to undefined variables.
                     // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
                     $T2_transfers = false;
@@ -239,7 +232,7 @@ class ConnectionsRepository
                     } else {
 
                         // When there isn't a reachable connection, transferring isn't an option
-                        $T3_transferArrivalTime = self::TIME_INFINITE;
+                        $T3_transferArrivalTime = INF;
                         // Default value to prevent errors due to undefined variables.
                         // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
                         $T3_transfers = false;
@@ -248,7 +241,7 @@ class ConnectionsRepository
 
                 } else {
                     // When there isn't a reachable connection, transferring isn't an option
-                    $T3_transferArrivalTime = self::TIME_INFINITE;
+                    $T3_transferArrivalTime = INF;
                     // Default value to prevent errors due to undefined variables.
                     // Will never be used: when an infinitely late arrival is to earliest available, the for loop will skip to the next connection.
                     $T3_transfers = false;
@@ -280,7 +273,7 @@ class ConnectionsRepository
                     $Tmin = $T2_stayOnTripArrivalTime;
 
                     // We're staying on this trip. This also implicates a key in $T exists for this trip. We're getting off at the previous exit for this vehicle.
-                    if ($T2_stayOnTripArrivalTime < self::TIME_INFINITE) {
+                    if ($T2_stayOnTripArrivalTime < INF) {
                         $exitTrainConnection = $T[$connection->getTrip()][self::KEY_ARRIVAL_CONNECTION];
                     }
                     $numberOfTransfers = $T2_transfers;
@@ -300,7 +293,7 @@ class ConnectionsRepository
                 // END GET EARLIEST ARRIVAL TIME
                 // ====================================================== //
 
-                if ($Tmin == self::TIME_INFINITE) {
+                if ($Tmin == INF) {
                     // If we haven't found an arrival time, just keep scanning
                     // We need to come across connections which halt in the destination first
                     continue;
@@ -422,7 +415,7 @@ class ConnectionsRepository
 
         $results = [];
         if (!key_exists($origin, $S)) {
-            return new ConnectionList(new Station($origin, $language), new Station($destination, $language), [], new Carbon(), Carbon::now()->addMinute(), md5($etag));
+            return new ConnectionList(new Station($origin, $language), new Station($destination, $language), [], new Carbon(), Carbon::now()->addMinute(), md5($etag), $previousPointer, $currentPointer, $nextPointer);
         }
 
         foreach ($S[$origin] as $k => $quad) {
@@ -462,7 +455,10 @@ class ConnectionsRepository
             array_values($results),
             new Carbon(),
             Carbon::now()->addMinute(),
-            md5($etag));
+            md5($etag),
+            $previousPointer,
+            $currentPointer,
+            $nextPointer);
     }
 
     function getFirstReachableConnection($S, $arrivalQuad)
@@ -482,5 +478,17 @@ class ConnectionsRepository
             }
         }
         return $it_options[$i];
+    }
+
+    /**
+     * @param $origin
+     * @param $destination
+     * @param $arrivaltime Carbon the latest arrival time
+     * @param $language
+     * @return ConnectionList
+     */
+    public function getConnectionsByArrivalTime($origin, $destination, Carbon $arrivaltime, $language, $results = 8): ConnectionList
+    {
+        return $this->getConnections($origin, $destination, null, $arrivaltime, 10, $results, $language);
     }
 }
