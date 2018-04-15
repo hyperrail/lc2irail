@@ -173,11 +173,11 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         while ($position + 1 < $length && $l < $r && !($needle >= $haystack[$position] && $needle < $haystack[$position + 1])) {
             if ($needle < $haystack[$position]) {
                 $r = $position;
-                Log::info("Limiting right to $position");
+                //Log::info("Limiting right to $position");
             }
             if ($needle > $haystack[$position + 1]) {
                 $l = $position + 1;
-                Log::info("Limiting left to " . ($position + 1));
+                //Log::info("Limiting left to " . ($position + 1));
             }
 
             //Log::info("Left {$haystack[$l]} Right {$haystack[$r]}");

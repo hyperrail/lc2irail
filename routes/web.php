@@ -12,7 +12,7 @@
 */
 
 $router->get('/', function () use ($router) {
-    return $router->version();
+    return $router->app->version();
 });
 
 $router->group(['prefix' => '/liveboard'], function () use ($router) {
@@ -62,6 +62,12 @@ $router->group(['prefix' => '/liveboard'], function () use ($router) {
 
 
 $router->group(['prefix' => '/vehicle'], function () use ($router) {
+    $router->get('/{id}',
+        [
+            'as'   => 'vehicle.byIdNow',
+            'uses' => 'Api\VehicleController@getVehicleNow'
+        ]
+    );
     $router->get('/{id}/{date:\d{8}}',
         [
             'as'   => 'vehicle.byId',

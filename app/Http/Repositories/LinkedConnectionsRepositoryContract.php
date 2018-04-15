@@ -26,10 +26,11 @@ interface LinkedConnectionsRepositoryContract
     /**
      * Retrieve an array of LinkedConnection objects for a certain departure time
      *
-     * @param Carbon $departureTime The time for which departures should be returned
-     * @param int    $window        The window, in seconds, for which departures should be retrieved
+     * @param mixed $pointer The time for which departures should be returned
+     * @param int    $window The window, in seconds, for which departures should be retrieved
      * @return \App\Http\Models\LinkedConnectionPage
      */
-    public function getLinkedConnectionsInWindow(Carbon $departureTime, int $window = 600): LinkedConnectionPage;
+    public function getLinkedConnectionsInWindow($pointer, int $window = 3600): LinkedConnectionPage;
+
 
 }

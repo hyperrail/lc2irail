@@ -46,4 +46,9 @@ class VehicleController extends Controller
         ]);
     }
 
+    public function getVehicleNow(HyperrailRequest $request, string $id)
+    {
+        return redirect()->route('vehicle.byId', ['id' => $id, 'date' => Carbon::now()->format("Ymd")]);
+    }
+
 }

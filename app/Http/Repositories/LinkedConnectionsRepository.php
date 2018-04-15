@@ -94,13 +94,19 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
     }
 
     public function getLinkedConnectionsInWindow(
-        Carbon $departureTime,
+        $pointer,
         int $window = 3600
     ): LinkedConnectionPage
     {
-        $departureTime = $departureTime->copy();
+        if ($pointer instanceof Carbon) {
+            $pointer = $pointer->copy();
+            $cacheKey = 'lc|getLinkedConnectionsInWindow|' . $pointer->getTimestamp() . '|' . $window;
+            Log::info("Getting linked connectings in window with size $window for start at " . $pointer->toAtomString());
+        } else {
+            $cacheKey = 'lc|getLinkedConnectionsInWindow|' . $pointer. '|' . $window;
+            Log::info("Getting linked connectings in window with size $window for start at " . $pointer);
+        }
 
-        $cacheKey = 'lc|getLinkedConnectionsInWindow|' . $departureTime->getTimestamp() . "|" . $window;
         if (Cache::has($cacheKey)) {
             $previousResponse = Cache::get($cacheKey);
 
@@ -118,11 +124,10 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
         $next = null;
 
         // Compare by timestamps as departure times are also stored as timestamps
-        $lastDepartureTime = $departureTime->getTimestamp();
-        $maxDepartureTime = $departureTime->getTimestamp() + $window;
-        $pointer = $departureTime;
+        $firstDepartureTime = 0;
+        $lastDepartureTime = 0;
 
-        while ($lastDepartureTime < $maxDepartureTime) {
+        while ($lastDepartureTime - $firstDepartureTime < $window) {
 
             $windowPage = $this->getLinkedConnections($pointer);
             $pointer = $windowPage->getNextPointer();
@@ -131,6 +136,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
 
             // Update the latest departure time in our results list
             if (count($departures) > 0) {
+                $firstDepartureTime = $departures[0]->getDepartureTime();
                 $lastDepartureTime = $departures[count($departures) - 1]->getDepartureTime();
             }
 
@@ -146,7 +152,8 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $prev = $windowPage->getPreviousPointer();
             }
             $next = $windowPage->getNextPointer();
-            Log:info("Next pointer " . $next);
+            Log:
+            info("Next pointer " . $next);
         }
 
         // Calculate a new etag based on the concatenation of all other etags
