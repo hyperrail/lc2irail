@@ -19,7 +19,7 @@ abstract class TrainStopBase
     /**
      * @var bool
      */
-    private $isPlatformNormal;
+    protected $isPlatformNormal;
 
     public function __construct(
         string $uri,

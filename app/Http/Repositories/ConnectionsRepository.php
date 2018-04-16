@@ -413,6 +413,21 @@ class ConnectionsRepository
             }
         }
 
+        if (starts_with($nextPointer, "http")) {
+            $previousPointer = substr($previousPointer, strpos($previousPointer, "="));
+            $nextPointer = substr($nextPointer, strpos($nextPointer, "="));
+            $currentPointer = substr($currentPointer, strpos($currentPointer, "="));
+        } else {
+            $previousPointer = substr($previousPointer, 0, -10);
+            $nextPointer = substr($nextPointer, 0, -10);
+            $currentPointer = substr($currentPointer, 0, -10);
+        }
+
+        $previousPointer = route("connections.byBounds", ['departureTimestamp' => $previousPointer, 'arrivalTimestamp' => $currentPointer, 'origin' => basename($origin), 'destination' => basename($destination)]);
+        $currentPointer = route("connections.byBounds", ['departureTimestamp' => $currentPointer, 'arrivalTimestamp' => $nextPointer, 'origin' => basename($origin), 'destination' => basename($destination)]);
+        $nextPointer = route("connections.byDeparture", ['timestamp' => $nextPointer, 'origin' => basename($origin), 'destination' => basename($destination)]);
+
+
         $results = [];
         if (!key_exists($origin, $S)) {
             return new ConnectionList(new Station($origin, $language), new Station($destination, $language), [], new Carbon(), Carbon::now()->addMinute(), md5($etag), $previousPointer, $currentPointer, $nextPointer);

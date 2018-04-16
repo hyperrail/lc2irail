@@ -85,7 +85,7 @@ class JourneyLeg implements \JsonSerializable
     /**
      * @var bool
      */
-    private $hasLeft;
+    private $hasDeparted;
 
     /**
      * @var bool
@@ -106,7 +106,7 @@ class JourneyLeg implements \JsonSerializable
         $this->departurePlatform = $departureConnection->getDeparturePlatform();
         $this->isDeparturePlatformNormal = $departureConnection->isDeparturePlatformNormal();
         $this->isDepartureCanceled = $departureConnection->isDepartureCanceled();
-        $this->hasLeft = $departureConnection->hasDeparted();
+        $this->hasDeparted = $departureConnection->hasDeparted();
 
         $this->arrivalUri = $arrivalConnection->getId();
         $this->arrivalStation = new Station($arrivalConnection->getArrivalStopUri(), $language);

@@ -22,7 +22,7 @@ class ConnectionList implements \JsonSerializable
     /**
      * @var Station
      */
-    private $destination;
+    private $arrivalStation;
 
 
     /**
@@ -44,7 +44,7 @@ class ConnectionList implements \JsonSerializable
         $this->createApiResponse($createdAt, $expiresAt, $etag);
         $this->createBrowseable($previous, $current, $next);
         $this->departureStation = $origin;
-        $this->destination = $destination;
+        $this->arrivalStation = $destination;
         $this->connections = $connections;
     }
 
@@ -67,9 +67,9 @@ class ConnectionList implements \JsonSerializable
     /**
      * @return Station
      */
-    public function getDestination(): Station
+    public function getArrivalStation(): Station
     {
-        return $this->destination;
+        return $this->arrivalStation;
     }
 
     public function jsonSerialize()
