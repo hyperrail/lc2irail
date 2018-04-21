@@ -74,6 +74,8 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
         $existingFiles = $this->binarySearchFirstSmallerThan($scheduledDataFragments, basename($scheduledFilePath));
 
+        $scheduledDataFragments = null;
+
         $previous = $existingFiles[0];
         $current = $existingFiles[1];
         $next = $existingFiles[2];
@@ -88,8 +90,10 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
         $realtimeDataCompressed = false;
         // Hacky date_format thingy to remove a leading zero in a month
+        $realtimeFilePaths = array_diff(scandir($realtimeBase . '/' . $mostRecentDataVersion . '/', SCANDIR_SORT_DESCENDING), ['..', '.']);
+        $realtimeFilePath = $realtimeBase . '/' . $mostRecentDataVersion . '/' . $realtimeFilePaths[0] . '/' . substr($filename,0,-3);
+        unset($realtimeFilePaths);
 
-        $realtimeFilePath = $realtimeBase . '/' . $mostRecentDataVersion . '/' . 'dateprefix' . '/' . substr($filename,0,-3);
         if (!file_exists($realtimeFilePath)) {
             $realtimeDataCompressed = true;
             $realtimeFilePath .= ".gz";
@@ -127,6 +131,9 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
                 $departures[$entry['@id']]['departureDelay'] = 0;
             }
         }
+
+        $data = null;
+        unset($data);
 
         if (file_exists($realtimeFilePath)) {
             // Decode realtime data if necessary
