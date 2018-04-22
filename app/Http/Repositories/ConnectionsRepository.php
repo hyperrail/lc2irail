@@ -47,7 +47,13 @@ class ConnectionsRepository
             if ($departureTime == null) {
                 $departureTime = new Carbon();
             }
-            $arrivaltime = $departureTime->copy()->addHours(8);
+            if ($departureTime->hour > 22 || $departureTime->hour < 1) {
+                $arrivaltime = $departureTime->copy()->addHours(8);
+            } else if($departureTime->hour > 18 || $departureTime->hour < 4) {
+                $arrivaltime = $departureTime->copy()->addHours(6);
+            } else {
+                $arrivaltime = $departureTime->copy()->addHours(5);
+            }
         }
 
         // For caching purposes
