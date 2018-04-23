@@ -26,7 +26,24 @@ class VehicleRepository implements VehicleRepositoryContract
 
         $trip = "http://irail.be/vehicle/" . $id . "/" . $date;
 
-        $pointer = Carbon::createFromFormat("Ymd his", $date . " 030000");
+        $firstDepartures = explode("\n", file_get_contents("../resources/firstdepartures.txt"));
+        $i = 0;
+
+        $departureTime = "";
+
+        while (strlen($departureTime == 0) && $i < count($firstDepartures)) {
+            if (explode(" ", $firstDepartures[$i])[0] == $id) {
+                $departureTime = explode(" ", $firstDepartures[$i])[1];
+                Log::info("Found departure time in index: $departureTime");
+            }
+
+            $i++;
+        }
+        if ($i == count($firstDepartures)){
+            $departureTime = "030000";
+        }
+
+        $pointer = Carbon::createFromFormat("Ymd His", $date . " " . $departureTime);
 
         $repository = app(LinkedConnectionsRepositoryContract::class);
 
