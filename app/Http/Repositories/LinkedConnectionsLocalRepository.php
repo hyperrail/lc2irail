@@ -2,11 +2,9 @@
 
 namespace App\Http\Repositories;
 
-use App\Http\Models\LinkedConnectionPage;
 use Cache;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
-use App\Http\Models\LinkedConnection;
 
 
 /**
@@ -40,9 +38,9 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
     public function getRawLinkedConnections($pointer)
     {
-        if (is_string($pointer)){
+        if (is_string($pointer)) {
             return $this->getRawLinkedConnectionsByString($pointer);
-        } elseif ( $pointer instanceof Carbon) {
+        } else if ($pointer instanceof Carbon) {
             return $this->getRawLinkedConnectionsByDateTime($pointer);
         } else {
             throw new \InvalidArgumentException("Invalid argument type");
@@ -70,7 +68,7 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         $mostRecentDataVersion = array_diff(scandir($scheduledBase, SCANDIR_SORT_DESCENDING), ['..', '.'])[0];
         $scheduledDataFragments = array_diff(scandir($scheduledBase . '/' . $mostRecentDataVersion . '/', SCANDIR_SORT_ASCENDING), ['..', '.']);
 
-        $scheduledFilePath = $scheduledBase . '/' . $mostRecentDataVersion . '/' . $filename ;
+        $scheduledFilePath = $scheduledBase . '/' . $mostRecentDataVersion . '/' . $filename;
 
         $existingFiles = $this->binarySearchFirstSmallerThan($scheduledDataFragments, basename($scheduledFilePath));
 
@@ -90,8 +88,13 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
         $realtimeDataCompressed = false;
         // Hacky date_format thingy to remove a leading zero in a month
-        $realtimeFilePaths = array_diff(scandir($realtimeBase . '/' . $mostRecentDataVersion . '/', SCANDIR_SORT_DESCENDING), ['..', '.']);
-        $realtimeFilePath = $realtimeBase . '/' . $mostRecentDataVersion . '/' . $realtimeFilePaths[0] . '/' . substr($filename,0,-3);
+        try {
+            $realtimeFilePaths = array_diff(scandir($realtimeBase . '/' . $mostRecentDataVersion . '/', SCANDIR_SORT_DESCENDING), ['..', '.']);
+        } catch (\Exception $e) {
+            // Ignored
+            $realtimeFilePaths = [];
+        }
+        $realtimeFilePath = $realtimeBase . '/' . $mostRecentDataVersion . '/' . $realtimeFilePaths[0] . '/' . substr($filename, 0, -3);
         unset($realtimeFilePaths);
 
         if (!file_exists($realtimeFilePath)) {
@@ -174,7 +177,7 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         $r = $length;
 
         // start in the middle
-        $position = (int) floor($r / 2);
+        $position = (int)floor($r / 2);
         Log::info("Searching $needle, start at $position");
 
         $iterations = 0;
@@ -190,7 +193,7 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
             //Log::info("Left {$haystack[$l]} Right {$haystack[$r]}");
             $newposition = floor($l + ($r - $l) / 2);
-            if ($position == $newposition){
+            if ($position == $newposition) {
                 $position = $newposition + 1;
             } else {
                 $position = $newposition;
