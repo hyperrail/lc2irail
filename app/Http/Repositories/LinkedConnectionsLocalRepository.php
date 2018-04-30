@@ -90,17 +90,19 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         // Hacky date_format thingy to remove a leading zero in a month
         try {
             $realtimeFilePaths = array_diff(scandir($realtimeBase . '/' . $mostRecentDataVersion . '/', SCANDIR_SORT_DESCENDING), ['..', '.']);
+            $realtimeFilePath = $realtimeBase . '/' . $mostRecentDataVersion . '/' . $realtimeFilePaths[0] . '/' . substr($filename, 0, -3);
+            unset($realtimeFilePaths);
+
+            if (!file_exists($realtimeFilePath)) {
+                $realtimeDataCompressed = true;
+                $realtimeFilePath .= ".gz";
+            }
         } catch (\Exception $e) {
             // Ignored
-            $realtimeFilePaths = [];
+            $realtimeFilePath = "doesnotexist.404";
         }
-        $realtimeFilePath = $realtimeBase . '/' . $mostRecentDataVersion . '/' . $realtimeFilePaths[0] . '/' . substr($filename, 0, -3);
-        unset($realtimeFilePaths);
 
-        if (!file_exists($realtimeFilePath)) {
-            $realtimeDataCompressed = true;
-            $realtimeFilePath .= ".gz";
-        }
+
 
         $scheduledModified = 0;
         if (file_exists($scheduledFilePath)) {
