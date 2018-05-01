@@ -9,7 +9,7 @@ use App\Http\Models\TrainDeparture;
 use App\Http\Models\TrainStop;
 use App\Http\Models\Vehicle;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 
 /**
@@ -26,23 +26,29 @@ class VehicleRepository implements VehicleRepositoryContract
 
         $trip = "http://irail.be/vehicle/" . $id . "/" . $date;
 
-        $firstDepartures = explode("\n", file_get_contents("../resources/firstdepartures.txt"));
+        if (Cache::has("firstdepartures.txt")) {
+            $firstDepartures = Cache::get("firstdepartures.txt");
+        } else {
+            $firstDepartures = explode("\n", file_get_contents("../resources/firstdepartures.txt"));
+            Cache::put("firstdepartures.txt", $firstDepartures, 24 * 60);
+        }
+
         $i = 0;
 
         $departureTime = "";
-
         while (strlen($departureTime == 0) && $i < count($firstDepartures)) {
             if (explode(" ", $firstDepartures[$i])[0] == $id) {
                 $departureTime = explode(" ", $firstDepartures[$i])[1];
-                Log::info("Found departure time in index: $departureTime");
+                break;
             }
-
             $i++;
         }
-        if ($i == count($firstDepartures)){
+
+        if ($i == count($firstDepartures)) {
             $departureTime = "030000";
         }
 
+        //$departureTime = "030000";
         $pointer = Carbon::createFromFormat("Ymd His", $date . " " . $departureTime);
 
         $repository = app(LinkedConnectionsRepositoryContract::class);
@@ -122,7 +128,7 @@ class VehicleRepository implements VehicleRepositoryContract
                     );
                 }
 
-                Log::info("Found relevant connection " . $connection->getId());
+                //Log::info("Found relevant connection " . $connection->getId());
                 $previousConnection = $connection;
                 $hoursWithoutStop = 0;
             }

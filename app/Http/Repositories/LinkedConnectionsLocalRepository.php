@@ -80,7 +80,7 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
         $scheduledFilePath = $scheduledBase . '/' . $mostRecentDataVersion . '/' . $existingFiles[1];
 
-        Log::info($scheduledFilePath . " is first smaller");
+        // Log::info($scheduledFilePath . " is first smaller");
 
         // TODO: check if this behaviour is correct when there are multiple folders
         // TODO: what should be done while the generation is running (old complete data and new incomplete data available)
@@ -180,7 +180,7 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
         // start in the middle
         $position = (int)floor($r / 2);
-        Log::info("Searching $needle, start at $position");
+        // Log::info("Searching $needle, start at $position");
 
         $iterations = 0;
         while ($position + 1 < $length && $l < $r && !($needle >= $haystack[$position] && $needle < $haystack[$position + 1])) {
@@ -203,7 +203,7 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
             $iterations++;
         }
 
-        Log::info("Found " . $haystack[$position] . " in $iterations iterations");
+        //Log::info("Found " . $haystack[$position] . " in $iterations iterations");
 
         $result = [];
         if ($position > 0) {

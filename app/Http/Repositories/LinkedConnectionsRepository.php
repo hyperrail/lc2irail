@@ -154,7 +154,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 $current = $windowPage->getCurrentPointer();
             }
             $next = $windowPage->getNextPointer();
-            Log::info("Next pointer " . $next);
+            // Log::info("Next pointer " . $next);
         }
 
         // Calculate a new etag based on the concatenation of al²l other etags
@@ -169,7 +169,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
                 }
         */
         $combinedPage = new LinkedConnectionPage($departures, new Carbon('UTC'), $expiresAt, $etag, $prev, $current, $next);
-        Log::info("Page contains " . count($departures) . " departures");
+        // Log::info("Page contains " . count($departures) . " departures");
         Cache::put($cacheKey, $combinedPage, $expiresAt);
 
         return $combinedPage;
@@ -216,7 +216,7 @@ class LinkedConnectionsRepository implements LinkedConnectionsRepositoryContract
      * @param int            $results The number of linked connections to retrieve
      * @return \App\Http\Models\LinkedConnectionPage A linkedConnections page containing all results
      */
-    public    function getConnectionsByLimit(
+    public function getConnectionsByLimit(
         Carbon $departureTime,
         int $results
     ): LinkedConnectionPage
