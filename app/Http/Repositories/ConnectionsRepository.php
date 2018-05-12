@@ -49,7 +49,7 @@ class ConnectionsRepository
             }
             if ($departureTime->hour > 22 || $departureTime->hour < 1) {
                 $arrivaltime = $departureTime->copy()->addHours(8);
-            } else if($departureTime->hour > 18 || $departureTime->hour < 4) {
+            } else if ($departureTime->hour > 18 || $departureTime->hour < 4) {
                 $arrivaltime = $departureTime->copy()->addHours(6);
             } else {
                 $arrivaltime = $departureTime->copy()->addHours(5);
@@ -59,6 +59,8 @@ class ConnectionsRepository
         // For caching purposes
         $expiresAt = null;
         $etag = "";
+
+        $oldpointer = null;
 
         $previousPointer = null;
         $currentPointer = null;
@@ -110,6 +112,9 @@ class ConnectionsRepository
 
             // Initially we'll start with connections for the hour before the arrival time.
             // Don't adjust the original arrival time, we'll need it later
+            if ($pointer == null && $oldpointer != null) {
+                abort(404, "Out of date range! No results were found in the available data. The last evaluated page was $oldpointer");
+            }
             $connectionsPage = $this->connectionsRepository->getLinkedConnections($pointer);
 
             if ($nextPointer == null) {
@@ -119,6 +124,7 @@ class ConnectionsRepository
             $previousPointer = $connectionsPage->getPreviousPointer();
 
             // We will loop over the pages in descending order
+            $oldpointer = $pointer;
             $pointer = $connectionsPage->getPreviousPointer();
             $connections = $connectionsPage->getLinkedConnections();
 
