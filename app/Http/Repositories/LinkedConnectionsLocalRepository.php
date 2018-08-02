@@ -4,7 +4,6 @@ namespace App\Http\Repositories;
 
 use Cache;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 
 
 /**
@@ -103,7 +102,6 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
         }
 
 
-
         $scheduledModified = 0;
         if (file_exists($scheduledFilePath)) {
             $scheduledModified = filemtime($scheduledFilePath);
@@ -123,8 +121,9 @@ class LinkedConnectionsLocalRepository implements LinkedConnectionsRawRepository
 
         if (file_exists($scheduledFilePath)) {
             $data = file_get_contents($scheduledFilePath);
-            $data = gzdecode($data);
-
+            if (strpos($scheduledFilePath, ".gz") !== false) {
+                $data = gzdecode($data);
+            }
 
             foreach (json_decode('[' . $data . ']', true) as $key => $entry) {
                 if ($entry["gtfs:pickupType"] != "gtfs:Regular" || $entry["gtfs:dropOffType"] != "gtfs:Regular") {
